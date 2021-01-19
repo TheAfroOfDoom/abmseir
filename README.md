@@ -12,6 +12,10 @@ Simulating the spread of COVID-19 on the UMassD campus using a Strogatz-Watts ne
 
   * Check version with `git --version`
 
+* Some LaTeX processor
+
+  * I use [TeXworks](http://www.tug.org/texworks/)
+
 ---
 ## Installation
 
