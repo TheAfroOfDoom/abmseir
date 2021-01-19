@@ -1,0 +1,18 @@
+# Directories
+assets/
+logs/
+Submission/
+
+# Mathematica Notebook files
+*.nb
+
+# Non-final feedback files
+*feedback.pdf
+proposal_feedback.txt
+
+# Python test files
+test.py
+
+# Report files
+report/*.pdf
+report/*.synctex.gz

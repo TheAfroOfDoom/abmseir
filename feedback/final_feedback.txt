@@ -1,0 +1,34 @@
+A.
+This is a nice realization of what I had hoped students in this course might be able to do by applying tools we developed over the semester to this problem. Not withstanding my queries & quibbles above, you have done an excellent job in chasing down what appear to be reliable data from which to estimate crucial model parameters. I like that you personalized it to our campus with its mix of students and the rates of local communities.
+
+I believe with little refinement this should be publishable. If you would like, I am happy to take a more active role in research and writing than was appropriate in the context of a project for this class. Or not. To give you some idea of what I would have in mind, much of which we have already discussed, let me share my notes to myself on likely directions to go from here:
+
+Twin goals:
+
+    1) Academic comparison of small-world vs. standard SEIR
+    2) Tool for UMassD
+
+(1):
+    A. Get complete graph to compare well with Patiel et al.
+        1. 5000 people
+        2. Fix infection rate (expect lower I on denser graph to give some R)
+        3. Match other parameters or at least some of Best, Base, & Worst
+    
+    B. Fix Strogatz-Watts (SW) to get correct diameter
+        - DONE: Correct diameter is 3 according to equivalently dense random graph
+        - DONE: New SW graph is generated and saved
+
+    C. Run at least a couple more SW simulations, then transmission, to make sure results are not sensitive to details
+
+    D. What about asymptomatic transferring to symptomatic?
+
+(2):
+    A. Adjust model parameters to agree with Fall data.
+
+    B. Guess exogenous was only about 3-4 cases/week in September. Can check shifts in local rates to estimate exogenous for, say, mid-November.
+
+    C. Model effects of raising exogenous without assuming shift in I. This could help understand how increasing base rates affect our pop[ulation].
+
+    D. Repeat for a larger pop[ulation] to reflect our Spring plans.
+
+As a member of the committee keeping track of the campus testing data, I would really like to have this tool, particularly to model effects of changing external rates and the new plan. We might understand thresholds for whether it is safe or not to remain open.
