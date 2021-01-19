@@ -34,8 +34,12 @@ In the command prompt or terminal, in the root of the local repository, type the
 To run the simulation and get graph outputs, use `model.py`:  
 `py model.py`  
 
-To get statistics about a graph file, modify and run `graphStats.py`:  
+To get statistics and a preview of a graph file, modify and run `graphStats.py`:  
 `py graphStats.py`
+
+## pretty
+![Strogatz-Watts Graph](report/figures/ws/graph.png)
+Strogatz-Watts Graph with 1500 nodes, mean vertex degree 43, and diameter 3.
 
 ---
 ## Authors
