@@ -1,0 +1,20 @@
+- Keep track of % of original edges rewired
+- 1A) Do this as a control - make sure cases line up well with Patiel
+- 1D) Methodology:
+    * infected [a]symptomatic behavior is really weird and arbitrary - try to match up with Patiel/SEIR model (1A)
+    * include parallel simulations with new (UK) strain ->
+    (1.3)*infection_rate or (1.7)*infection_rate
+    * population numbers increasing
+        - fall, we had 700-800 on campus.
+        - spring, we will have around 1000 on campus.
+        - http://www.math.umassd.edu/~dyan/dashboard.html
+            * math dept. covid dashboard - lots of data to compare fall semester to
+
+- When talking about Se -> SIa, don't move all guaranteed on day 3 (mean = 3).
+    * Exponential distribution (mean = 1/lambda)
+    * TODO: look into making most if not all aspects of state diagram into this exp. dist.
+        - how does SEIR model do it? Grab their numbers and their (effective?) state diagram and use that
+
+- Talked about Rt and difficulties with measuring it
+    * method right now is okay, the issue I ran into where the susceptible population is significantly lower is valid and we are unsure how to approach it
+    * current method only looks at generation 1 -> 2 infection transfers
