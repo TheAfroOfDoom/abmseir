@@ -38,5 +38,5 @@ def write():
     log.info("Config saved.")
     pass
 
-# On initialize, load the config
+# On initialization, load the config
 load()
