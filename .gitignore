@@ -1,6 +1,6 @@
 # Directories
 assets/
-logs/
+logs/*
 Submission/
 
 # Mathematica Notebook files
@@ -10,9 +10,15 @@ Submission/
 *feedback.pdf
 proposal_feedback.txt
 
-# Python test files
-test.py
-
 # Report files
 report/*.pdf
 report/*.synctex.gz
+
+# Batch scripts
+*.bat
+
+# Python test files
+test.py
+
+# Python cache files
+*.cpython*
