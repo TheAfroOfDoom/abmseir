@@ -1,122 +1,32 @@
-# Jordan Williams
-# MTH 465 - Small World Networks
-# 01/18/2021
-# Final Project - Post-semester revisions
-# Modelling the Spread of SARS-CoV-2 at UMass Dartmouth using Small World Networks
+###
+# File: simulation.py
+# Created: 01/25/2021
+# Author: Jordan Williams (jwilliams13@umassd.edu)
+# -----
+# Last Modified: 01/25/2021
+# Modified By: Jordan Williams
+###
 
-# made in Python 3.9.0
+"""
+Simulates the infectious spread across a community based on parameters defined in config.json.
+"""
 
-import logging
+# Modules
+import config
+from log_handler import logging as log
+
+# Packages
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+import os
 import pandas as pd
 import random
 import seaborn as sns
 import sys
 
-n, k, d = 1500, 43, 3
-
-g = []
-GRAPH_TYPE = "Watts Strogatz"
-#GRAPH_TYPE = "Complete"
-
-PATH_DIR = "edgelists/"
-
-logging.basicConfig(filename='logs/latest.log', level=logging.DEBUG, format="%(asctime)s:%(levelname)s: %(message)s")
-logging.getLogger().addHandler(logging.StreamHandler())
-
-if(GRAPH_TYPE == "Watts Strogatz"):
-    def WattsStrogatz(n, k, diameterGoal):
-        g = nx.Graph();
-
-        # this raw function is much faster than using this:
-        # <nx.complete_graph(n).edges()>
-        # like, around 100 seconds faster (~120 to ~20) for n = 5000
-        def complete_graph_edges(n):
-            t = nx.Graph()
-            for j in range(n):
-                for i in range(j + 1, n):
-                    t.add_edge(j, i)
-            return(t)
-
-        remaining_edges = complete_graph_edges(n)
-
-        # Regular lattice w/(n vertices, k neighbors)
-        regular_lattice = nx.Graph()
-        for x in range(n):
-            for y in range(k // 2):
-                regular_lattice.add_edge(x, (x + y + 1) % n)
-
-        remaining_edges.remove_edges_from(regular_lattice.edges())
-        remaining_edges = np.asarray(remaining_edges.edges()).tolist()
-
-        g = nx.compose(g, regular_lattice)
-        regular_lattice = np.asarray(regular_lattice.edges()).tolist()
-
-        while nx.diameter(g) > diameterGoal:
-            choice = remaining_edges[np.random.choice(len(remaining_edges))]
-            edge_removed = regular_lattice[np.random.choice(len(regular_lattice))]
-
-            g.remove_edge(edge_removed[0], edge_removed[1])
-            g.add_edge(choice[0], choice[1])
-
-            regular_lattice.remove(edge_removed)
-            remaining_edges.remove(choice)
-    
-        return(g)
-
-    # Read from file if exists
-    path = PATH_DIR + "WattsStrogatz_n{n}-k{k}-d{d}.edgelist".format(n = n, k = k, d = d)
-    try:
-        g = nx.read_edgelist(path, nodetype = int)
-        print("Read graph from '%s' with %d vertices, %d edges." % (path, g.number_of_nodes(), g.number_of_edges()))
-    except:
-        print("Failed to read graph from '%s'. Generating..." % (path))
-        g = WattsStrogatz(n, k, d)
-        nx.write_edgelist(g, path)
-        print("Wrote new graph to '%s' with %d vertices, %d edges." % (path, g.number_of_nodes(), g.number_of_edges()))
-
-elif(GRAPH_TYPE == "Complete"):
-    def CompleteGraph(n):
-        # this raw function is much faster than using this:
-        # <nx.complete_graph(n).edges()>
-        # like, around 100 seconds faster (~120 to ~20) for n = 5000
-        t = nx.Graph()
-        for j in range(n):
-            for i in range(j + 1, n):
-                t.add_edge(j, i)
-        return(t)
-
-    # Read from file if exists
-    path = PATH_DIR + "CompleteGraph_n{n}.edgelist".format(n = n, k = k, d = d)
-    g = []
-    try:
-        g = nx.read_edgelist(path, nodetype = int)
-        print("Read graph from '%s' with %d vertices, %d edges." % (path, g.number_of_nodes(), g.number_of_edges()))
-    except:
-        print("Failed to read graph from '%s'. Generating..." % (path))
-        g = CompleteGraph(n)
-        nx.write_edgelist(g, path)
-        print("Wrote new graph to '%s' with %d vertices, %d edges." % (path, g.number_of_nodes(), g.number_of_edges()))
-
-'''
-# Constants
-'''
-TIME_HORIZON = 100
-INITIAL_INFECTED_COUNT = 0
-
-DAYS_EXPOSED = 3
-
-DAYS_ASYMPTOMATIC = 10
-DAYS_UNTIL_SYMPTOMS = 2
-DAYS_SYMPTOMATIC = 5
-DAYS_SYMPTOMATIC_QUARATINED = 5
-
-ASYMPTOMATIC_RECOVERY_RATE = 0.15
-
-DAYS_UNTIL_TEST_RESULTS = 1
-
+# TODO(jordan): Make the program calculate these constants manually
+# by running the simulation until all Gen1 infected people recover.
 C = {
     "1.05": 0.0777
     , "1.5": 0.1118
@@ -130,7 +40,7 @@ EXOGENOUS_RATES = [
 ]
 
 TEST_COST = 25
-TEST_RATES = [1, 2, 3, 7, "Symptom-based", "None"]
+TEST_RATES = [1, 2, 3, 7, "symptom-based", 0]
 TEST_POSNEG = [0.948, 0.956]
 QUARANTINE_TIME_ON_POSITIVE_TEST = 14
 
@@ -197,9 +107,9 @@ class Node:
 
         # infected symp.
         elif(self.status == 3):
-            # Get tested if not already quarantined (and testRate == Symptom-based)
+            # Get tested if not already quarantined (and testRate == 'symptom-based')
             if(self.quarantineTime == 0
-            and testRate == "Symptom-based"):
+            and str(testRate).lower() == "symptom-based"):
                 self.test(testRate)
 
             # t == 5
@@ -261,7 +171,7 @@ class Node:
         trueNegativeRate = TEST_POSNEG[1]
 
         # Don't test
-        if(testRate == "None"):
+        if(testRate == 0):
             return
         
         self.testsTaken += 1
@@ -450,7 +360,7 @@ def makeGraphs(testRates, caseTypes):
     else:
         axs[0].legend(l)
 
-    colLabels = [r"%s Graph: $\beta$: %.2f%%, X: %d" % (GRAPH_TYPE, 100 * BASE_INFECTION_RATE[caseType[0]], caseType[1]) for caseType in caseTypes]
+    colLabels = [r"%s Graph: $\beta$: %.2f%%, X: %d" % (conf.config['graph']['type'], 100 * BASE_INFECTION_RATE[caseType[0]], caseType[1]) for caseType in caseTypes]
     rowLabels = ["%d days" % (testRate) if isinstance(testRate, int) else testRate for testRate in reversed(testRates)]
 
     # Fancy column/row labels in addition to subplot labels
@@ -481,7 +391,7 @@ def makeGraphs(testRates, caseTypes):
     plt.show()
 
 # test cases to see if output is correct
-#testRates = [7, "None"]
+#testRates = [7, 0]
 #castTypes = [CASE_TYPES[0], CASE_TYPES[1]]
 #SAMPLE_SIZE = 1
 
