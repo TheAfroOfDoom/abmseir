@@ -1,0 +1,62 @@
+{
+    "graph": {
+        "active": {
+            "type": "Watts-Strogatz",
+            "properties": [1500, 43, 3],
+            "count": 5
+        },
+        "definitions": {
+            "complete": {
+                "random": "false",
+                "properties": [
+                    {
+                        "name": "nodes",
+                        "key": "n"
+                    }
+                ]
+            },
+            "wattsstrogatz": {
+                "random": "true",
+                "properties": [
+                    {
+                        "name": "nodes",
+                        "key": "n"
+                    },
+                    {
+                        "name": "node_degree",
+                        "key": "k"
+                    },
+                    {
+                        "name": "diameter",
+                        "key": "d"
+                    }
+                ]
+            }
+        },
+        "directory": "graphs/",
+        "extension": ".edgelist"
+    },
+    "simulation": {
+        "properties": {
+            "time_horizon": 100,
+            "initial_infected_count": 0,
+
+            "days_exposed": 3,
+            "days_asymptomatic": 10,
+            "days_extra_until_symptoms": 2,
+            "days_symptomatic": 5,
+            "days_symptomatic_quarantined": 5,
+            
+            "asymptomatic_recovery_rate": 0.15,
+
+            "days_until_test_results": 1,
+
+            "testing": {
+                "cost": 25,
+                "frequency": [
+                    1, 2, 3, 7, "symptom-based", 0
+                ]
+            }
+        }
+    }
+}
