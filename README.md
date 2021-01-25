@@ -37,9 +37,9 @@ pip install -r requirements.txt
 
 ---
 ## Run
-To run the simulation and get graph outputs, use `model.py`:  
+To run the simulation and get graph outputs, use `main.py`:  
 ```
-py model.py
+py src/main.py
 ```  
 
 To get statistics and a preview of a graph file, modify and run `graphStats.py`:  
