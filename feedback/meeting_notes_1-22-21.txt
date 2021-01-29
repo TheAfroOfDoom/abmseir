@@ -1,4 +1,4 @@
-- Keep track of % of original edges rewired
+- Keep track of % of original edges rewired [DONE]
 - 1A) Do this as a control - make sure cases line up well with Patiel
 - 1D) Methodology:
     * infected [a]symptomatic behavior is really weird and arbitrary - try to match up with Patiel/SEIR model (1A)

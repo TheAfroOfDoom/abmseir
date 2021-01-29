@@ -1,9 +1,11 @@
 {
     "graph": {
         "active": {
-            "type": "Watts-Strogatz",
-            "properties": [1500, 43, 3],
-            "count": 5
+            "type": "Complete",
+            "properties": [5000],
+            "count": 1
+
+            ,"OLDWSproperties": [1500, 42, 3]
         },
         "definitions": {
             "complete": {
@@ -39,23 +41,48 @@
     "simulation": {
         "properties": {
             "time_horizon": 100,
-            "initial_infected_count": 0,
+            "initial_infected_count": 10,
 
-            "days_exposed": 3,
+            "incubation_time": 3,
+            "time_to_recovery": 14,
+
             "days_asymptomatic": 10,
             "days_extra_until_symptoms": 2,
             "days_symptomatic": 5,
             "days_symptomatic_quarantined": 5,
             
-            "asymptomatic_recovery_rate": 0.15,
+            "probability_of_symptoms": 0.30,
 
-            "days_until_test_results": 1,
+            "acceptable_rt_error": 0.01, 
+            "scenarios": [
+                {
+                    "exogenous_rate": 3,
+                    "rt": 1.05,
+                    "type": "best"
+                },
+                {
+                    "exogenous_rate": 10,
+                    "rt": 1.5,
+                    "type": "base"
+                },
+                {
+                    "exogenous_rate": 15,
+                    "rt": 2.0,
+                    "type": "worst"
+                }
+            ],
 
             "testing": {
+                "accuracy": {
+                    "true_positive_rate": 0.948,
+                    "true_negative_rate": 0.956
+                },
                 "cost": 25,
+                "delay": 1,
                 "frequency": [
                     1, 2, 3, 7, "symptom-based", 0
-                ]
+                ],
+                "quarantine_time": 14
             }
         }
     }

@@ -19,6 +19,7 @@ report/*.synctex.gz
 
 # Python test files
 test.py
+tempCodeRunnerFile.py
 
 # Python cache files
 *.cpython*
