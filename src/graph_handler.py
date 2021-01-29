@@ -3,13 +3,13 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/25/2021
+# Last Modified: 01/26/2021
 # Modified By: Jordan Williams
 ###
 
 """
-Reads a graph file (`*.edgelist`) from the configured directory according to parameters if it exists,
-or generates and writes a new one if not.
+Reads a graph file (`*.edgelist`) from the configured directory according to parameters
+if it exists, or generates and writes a new one if not.
 """
 
 # Modules
