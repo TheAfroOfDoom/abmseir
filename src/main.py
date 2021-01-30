@@ -68,7 +68,7 @@ for g in active_graphs:
 
 SAMPLE_SIZE = 50
 
-def makeGraphs(testRates, caseTypes):
+def plotGraphs(testRates, caseTypes):
     fig, axs = plt.subplots(nrows = len(testRates), ncols = len(caseTypes))
     # Each row is a test rate (least-often to most-often)
     for i, testRate in enumerate(reversed(testRates)):
@@ -146,14 +146,14 @@ def makeGraphs(testRates, caseTypes):
 '''
 testRates = [TEST_RATES[-1], TEST_RATES[-2]]
 for caseTypes in CASE_TYPES[2:]:
-    makeGraphs(testRates, [caseTypes])
+    plotGraphs(testRates, [caseTypes])
 '''
 #'''
 testRates = TEST_RATES[3:]  # split rows in half
 for caseTypes in CASE_TYPES:
-    makeGraphs(testRates, [caseTypes])
+    plotGraphs(testRates, [caseTypes])
 #'''
 testRates = TEST_RATES[:3]  # split rows in half
 for caseTypes in CASE_TYPES:
-    makeGraphs(testRates, [caseTypes])
+    plotGraphs(testRates, [caseTypes])
 #'''
