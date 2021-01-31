@@ -53,7 +53,7 @@ def wattsstrogatz_graph(args):
     # Seed rng
     random.seed(rng)
 
-    g = nx.Graph();
+    g = nx.Graph()
     # Keep track of what edges we will randomly choose from.
     # Start with a complete list of all possible edges.
     remaining_edges = import_graph('complete', [n])

@@ -25,47 +25,149 @@ import random
 import seaborn as sns
 import sys
 
-def bisect(lo, hi):
-    '''Returns the average of two numeric parameters.
-    '''
-    return (lo + hi) / 2
+class Simulation:
+    def __init__(self, g):
+        self.g = g
+        self.nodes = self.get_nodes()
+        self.time_horizon = config.settings['simulation']['properties']['time_horizon']
+        self.base_infection_rate = config.settings['simulation']['properties']['scenarios'][2]
+        self.test_cost = config.settings['simulation']['properties']['testing']['cost']
 
-def calculate_infection_rate(graph, node_degree, desired_rt, error):
-    '''Calculates the infection rate for a desired `Rt` value
-    through what is essentially trial and error w/binary search:
-    1. Run the simulation until all Gen.1 infections recover
-    2. Compare measured R_t to desired R_t
-    3. Use binary search to update bounds
-    4. Repeat
-    '''
-    # Initial bounds
-    lower_bound = 0
-    upper_bound = node_degree
+    def get_nodes(self):
+        nodes = []
+        for node_index in self.g.nodes():
+            nodes.append(Node(node_index))
 
-    while(True):
-        # Update guess
-        infection_rate = bisect(lower_bound, upper_bound)
+    def calculate_infection_rate(self, node_degree, desired_rt, error):
+        '''Calculates the infection rate for a desired `Rt` value
+        through what is essentially trial and error w/binary search:
+        1. Run the simulation until all Gen.1 infections recover
+        2. Compare measured R_t to desired R_t
+        3. Use binary search to update bounds
+        4. Repeat
+        '''
+        # Initial bounds
+        lower_bound = 0
+        upper_bound = node_degree
 
-        # Run simulation TODO(jordan): <until all Gen.1 infections recover and save measured Rt>
-        # TODO(jordan): Get the average `measured_rt` of multiple simulations.
-        measured_rt = run_simulation()
+        while(True):
+            # Update guess
+            infection_rate = self.bisect(lower_bound, upper_bound)
 
-        # Update bounds
-        if(measured_rt > desired_rt + error):
-            upper_bound = infection_rate
-        elif(measured_rt < desired_rt - error):
-            lower_bound = infection_rate
-        # Break when we measure an rt within the error of our desired_rt
-        else:
-            break
+            # Run simulation TODO(jordan): <until all Gen.1 infections recover and save measured Rt>
+            # TODO(jordan): Get the average `measured_rt` of multiple simulations.
+            measured_rt = self.run_simulation()
 
-    return(infection_rate)
+            # Update bounds
+            if(measured_rt > desired_rt + error):
+                upper_bound = infection_rate
+            elif(measured_rt < desired_rt - error):
+                lower_bound = infection_rate
+            # Break when we measure an rt within the error of our desired_rt
+            else:
+                break
 
-def geometric_by_mean(rng, mean):
-    # https://en.wikipedia.org/wiki/Geometric_distribution (mean = 1 / p)
-    p = 1 / (mean)
+        return(infection_rate)
 
-    return(rng.geometric(p))
+    def add_exogenous_cases(self, amount, rng):
+        '''Sets a number of cases specified by `amount` to exposed.
+        This represents cases coming onto campus from outside sources,
+        e.g. an individual getting infected while visiting home.
+        '''
+        # Susceptible nodes
+        susceptible_nodes = [node.index for node in self.nodes if node.state == 'susceptible']
+        
+        # If there aren't enough susceptible nodes remaining to infected,
+        # just expose the rest.
+        if(len(susceptible_nodes) <= amount):
+            for i in susceptible_nodes:
+                self.nodes[i].getExposed()
+            return
+
+        # Randomly choose an `amount` of susceptible nodes to expose.
+        # The `replace` parameter ensures we don't choose duplicates.
+        chosen_indices = rng.choice(susceptible_nodes, amount, replace = False)
+        for i in chosen_indices:
+            self.nodes[i].get_exposed()
+
+    def run_simulation(self, time_span, initial_infected_count, data, transmission_rate, exogenous_rate, test_rate):
+
+        # Initialize numpy random number generator
+        rng = np.random.default_rng()
+
+        # Randomly infect `initial_infected_count` nodes
+        initial_infected_nodes = rng.choice(len(self.nodes), initial_infected_count, replace = False)
+        for chosen_node in initial_infected_nodes:
+            node = self.nodes[chosen_node]
+            node.change_state('infected')
+            node.index_case = True
+
+        for ti in range(time_span):
+            # Add exogenous infections weekly, after the first week
+            if(ti % 7 == 0 and ti > 0):
+                self.add_exogenous_cases(self.nodes, exogenous_rate)
+        
+            # Daily counts
+            infected, recovered, susceptible = 0, 0, 0
+            for node in self.nodes:
+                if(node.state == 0):
+                    susceptible += 1
+                elif(node.state == 4):
+                    recovered += 1
+                else:
+                    infected += 1
+
+                node.update(rng, self.g.neighbors(node.index), self.nodes, transmission_rate, ti, test_rate)
+
+            # Save data (["infected", "recovered", "susceptible"])
+            for state in data:
+                data[state] = data[state].append({'day': ti, 'cases': eval(state)}, ignore_index = True)
+
+        totalRecovered = 0
+        totalSpreadTo = 0
+        totalTests = 0
+
+        # rt calculating
+        for node in self.nodes:
+            totalTests += node.testsTaken
+            if(node.indexCase):
+                totalRecovered += 1
+                totalSpreadTo += node.rt
+
+        # return (rt, cost of tests)
+        return((totalSpreadTo / totalRecovered), totalTests)
+
+    def simulationContainer(self, ax, testRate, rt, X, sampleSize):
+        data = {
+            "infected": pd.DataFrame(),
+            "recovered": pd.DataFrame(),
+            "susceptible": pd.DataFrame()
+        }
+        for _ in range(self.time_horizon):
+            for state in data:
+                data[state].append([])
+        
+        transmissionRate = self.base_infection_rate[rt]
+        expRt, testCost = 0, 0
+        for _ in range(sampleSize):
+            result = self.run_simulation(self.time_horizon, X, data, transmissionRate, X, testRate)
+            expRt += result[0]
+            testCost += result[1]
+        expRt /= sampleSize
+        testCost = testCost * self.test_cost / sampleSize
+
+        print("Test rate: %s, beta: %.2f%%, X: %d | Rt %d trials: %.2f" % (str(testRate), 100 * transmissionRate, X, sampleSize, expRt))
+
+        for state in data:
+            sns.lineplot(data = data[state], x = 'day', y = 'cases', ax = ax)
+
+        # Calculate total (mean + std) infected + recovered
+        dfInfected, dfRecovered = data["infected"], data["recovered"]
+        dfTotalCases = dfInfected.loc[dfInfected['day'] == self.time_horizon - 1]['cases'] + dfRecovered.loc[dfRecovered['day'] == self.time_horizon - 1]['cases']
+        meanTotalCases, stdTotalCases = dfTotalCases.mean(), dfTotalCases.std()
+
+        ax.set_title(r"$R_t$: %.2f, C: %.2f, $\bar{x}$: %.1f, $\sigma_x$: %.1f" % (expRt, testCost, meanTotalCases, stdTotalCases))
+
 
 class Test:
     '''Handles everything related to a node's testing:
@@ -189,7 +291,7 @@ class Node:
         self.state = 'exposed'
 
         # Pull from geometric distribution with mean = `time_to_infection`
-        self.state_time = geometric_by_mean(self.rng, time_to_infection)
+        self.state_time = geometric_by_mean(self.rng, self.time_to_infection)
 
     def get_infected(self, time_to_recovery):
         self.state = 'infected'
@@ -208,13 +310,13 @@ class Node:
         self.state_time -= 1
 
         # Grab state settings
-        time_to_infection       = state_settings['time_to_infection'] # A.K.A. incubation time
-        time_to_recovery        = state_settings['time_to_recovery']
-        symptoms_probability    = state_settings['symptoms_probability']
+        self.time_to_infection       = state_settings['time_to_infection'] # A.K.A. incubation time
+        self.time_to_recovery        = state_settings['time_to_recovery']
+        self.symptoms_probability    = state_settings['symptoms_probability']
         #time_to_symptoms        = state_settings['time_to_symptoms']
 
         # Update test properties
-        self.test.update(self, global_time, test_settings, time_to_recovery)
+        self.test.update(self, global_time, test_settings, self.time_to_recovery)
 
         # susceptible
         if(self.state == 'susceptible'):
@@ -224,7 +326,7 @@ class Node:
         elif(self.state == 'exposed'):
             # Progress from exposed to infected state after mean incubation period (3 days)
             if(self.state_time == 0):
-                self.get_infected(time_to_recovery)
+                self.get_infected(self.time_to_recovery)
 
         # infected
         if(self.state == 'infected'):
@@ -236,7 +338,7 @@ class Node:
             else:
                 # Gain symptoms with some probability (0.30)
                 if( not self.symptoms
-                and rng.random() <= symptoms_probability):
+                and rng.random() <= self.symptoms_probability):
                         self.symptoms = True
 
                 # Spread if not quarantined
@@ -279,104 +381,13 @@ class Node:
         # Pull from geometric distribution, mean recovery time = 14
         self.quarantine_time = geometric_by_mean(self.rng, time_to_recovery)
 
-def add_exogenous_cases(nodes, amount, rng):
-    '''Sets a number of cases specified by `amount` to exposed.
-    This represents cases coming onto campus from outside sources,
-    e.g. an individual getting infected while visiting home.
+def geometric_by_mean(rng, mean):
+    # https://en.wikipedia.org/wiki/Geometric_distribution (mean = 1 / p)
+    p = 1 / (mean)
+
+    return(rng.geometric(p))
+
+def bisect(lo, hi):
+    '''Returns the average of two numeric parameters.
     '''
-    # Susceptible nodes
-    susceptible_nodes = [node.index for node in nodes if node.state == 'susceptible']
-    
-    # If there aren't enough susceptible nodes remaining to infected,
-    # just expose the rest.
-    if(len(susceptible_nodes) <= amount):
-        for i in susceptible_nodes:
-            nodes[i].getExposed()
-        return
-
-    # Randomly choose an `amount` of susceptible nodes to expose.
-    # The `replace` parameter ensures we don't choose duplicates.
-    chosen_indices = rng.choice(susceptible_nodes, amount, replace = False)
-    for i in chosen_indices:
-        nodes[i].get_exposed()
-
-def run_simulation(graph, time_span, initial_infected_count, data, transmission_rate, exogenous_rate, test_rate):
-    nodes = []
-    for node_index in graph.nodes():
-        nodes.append(Node(node_index))
-
-    # Initialize numpy random number generator
-    rng = np.random.default_rng()
-
-    # Randomly infect `initial_infected_count` nodes
-    initial_infected_nodes = rng.choice(len(nodes), initial_infected_count, replace = False)
-    for chosen_node in initial_infected_count:
-        node = nodes[chosen_node]
-        node.change_state('infected')
-        node.index_case = True
-
-    for ti in range(time_span):
-        # Add exogenous infections weekly, after the first week
-        if(ti % 7 == 0 and ti > 0):
-            add_exogenous_cases(nodes, exogenous_rate)
-    
-        # Daily counts
-        infected, recovered, susceptible = 0, 0, 0
-        for node in nodes:
-            if(node.state == 0):
-                susceptible += 1
-            elif(node.state == 4):
-                recovered += 1
-            else:
-                infected += 1
-
-            node.update(rng, g.neighbors(node.index), nodes, transmission_rate, ti, test_rate)
-
-        # Save data (["infected", "recovered", "susceptible"])
-        for state in data:
-            data[state] = data[state].append({'day': ti, 'cases': eval(state)}, ignore_index = True)
-
-    totalRecovered = 0
-    totalSpreadTo = 0
-    totalTests = 0
-
-    # rt calculating
-    for node in nodes:
-        totalTests += node.testsTaken
-        if(node.indexCase):
-            totalRecovered += 1
-            totalSpreadTo += node.rt
-
-    # return (rt, cost of tests)
-    return((totalSpreadTo / totalRecovered), totalTests)
-
-def simulationContainer(ax, testRate, rt, X, sampleSize):
-    data = {
-        "infected": pd.DataFrame(),
-        "recovered": pd.DataFrame(),
-        "susceptible": pd.DataFrame()
-    }
-    for i in range(TIME_HORIZON):
-        for state in data:
-            data[state].append([])
-    
-    transmissionRate = BASE_INFECTION_RATE[rt]
-    expRt, testCost = 0, 0
-    for i in range(sampleSize):
-        result = runSimulation(TIME_HORIZON, X, data, transmissionRate, X, testRate)
-        expRt += result[0]
-        testCost += result[1]
-    expRt /= sampleSize
-    testCost = testCost * TEST_COST / sampleSize
-
-    print("Test rate: %s, beta: %.2f%%, X: %d | Rt %d trials: %.2f" % (str(testRate), 100 * transmissionRate, X, sampleSize, expRt))
-
-    for state in data:
-        sns.lineplot(data = data[state], x = 'day', y = 'cases', ax = ax)
-
-    # Calculate total (mean + std) infected + recovered
-    dfInfected, dfRecovered = data["infected"], data["recovered"]
-    dfTotalCases = dfInfected.loc[dfInfected['day'] == TIME_HORIZON - 1]['cases'] + dfRecovered.loc[dfRecovered['day'] == TIME_HORIZON - 1]['cases']
-    meanTotalCases, stdTotalCases = dfTotalCases.mean(), dfTotalCases.std()
-
-    ax.set_title(r"$R_t$: %.2f, C: %.2f, $\bar{x}$: %.1f, $\sigma_x$: %.1f" % (expRt, testCost, meanTotalCases, stdTotalCases))
+    return (lo + hi) / 2
