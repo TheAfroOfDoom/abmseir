@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/29/2021
+# Last Modified: 01/30/2021
 # Modified By: Jordan Williams
 ###
 
@@ -61,11 +61,13 @@ def calculate_infection_rate(graph, node_degree, desired_rt, error):
 
     return(infection_rate)
 
+# TODO(jordan): Make something that doesn't fucking suck
 def geometric_by_mean(rng, mean):
     # https://en.wikipedia.org/wiki/Geometric_distribution (mean = 1 / p)
     p = 1 / (mean)
 
     return(rng.geometric(p))
+    return(rng.gaussian(mean, stdev))
 
 class Test:
     '''Handles everything related to a node's testing:
@@ -185,7 +187,7 @@ class Node:
     def __str__(self):
         return(self.state)
 
-    def get_exposed(self):
+    def get_exposed(self, time_to_infection):
         self.state = 'exposed'
 
         # Pull from geometric distribution with mean = `time_to_infection`
@@ -197,7 +199,7 @@ class Node:
         # Pull from geometric distribution with mean = `time_to_recovery`
         self.state_time = geometric_by_mean(self.rng, time_to_recovery)
 
-    def update(self, rng, global_time, spread_settings, test_settings, state_settings):
+    def update(self, rng, global_time, state_settings, spread_settings, test_settings):
         '''Runs once per cycle per node, updating a node based on it's state.
         1. Susceptible: do nothing
         2. Exposed: change to infected state after mean incubation period (3 days)
@@ -224,7 +226,7 @@ class Node:
         elif(self.state == 'exposed'):
             # Progress from exposed to infected state after mean incubation period (3 days)
             if(self.state_time == 0):
-                self.get_infected(time_to_recovery)
+                self.get_infected(time_to_infection)
 
         # infected
         if(self.state == 'infected'):
@@ -279,7 +281,7 @@ class Node:
         # Pull from geometric distribution, mean recovery time = 14
         self.quarantine_time = geometric_by_mean(self.rng, time_to_recovery)
 
-def add_exogenous_cases(nodes, amount, rng):
+def add_exogenous_cases(rng, nodes, amount):
     '''Sets a number of cases specified by `amount` to exposed.
     This represents cases coming onto campus from outside sources,
     e.g. an individual getting infected while visiting home.
@@ -300,7 +302,13 @@ def add_exogenous_cases(nodes, amount, rng):
     for i in chosen_indices:
         nodes[i].get_exposed()
 
-def run_simulation(graph, time_span, initial_infected_count, data, transmission_rate, exogenous_rate, test_rate):
+def run_simulation(graph, time_span, initial_infected_count, exogenous_rate, data, state_settings, spread_settings, test_settings):
+    '''TODO
+    '''
+    # TODO(aidan): we can either pass settings params e.g. `state_settings`
+    # as a whole to `run_simulation()` or we can pass the individual params
+    # up 2 u
+    
     nodes = []
     for node_index in graph.nodes():
         nodes.append(Node(node_index))
@@ -308,49 +316,53 @@ def run_simulation(graph, time_span, initial_infected_count, data, transmission_
     # Initialize numpy random number generator
     rng = np.random.default_rng()
 
-    # Randomly infect `initial_infected_count` nodes
+    # Randomly infect initial nodes
     initial_infected_nodes = rng.choice(len(nodes), initial_infected_count, replace = False)
-    for chosen_node in initial_infected_count:
+    for chosen_node in initial_infected_nodes:
         node = nodes[chosen_node]
         node.change_state('infected')
         node.index_case = True
 
-    for ti in range(time_span):
+    # Simulate for `time_span` time steps
+    for global_time in range(time_span):
         # Add exogenous infections weekly, after the first week
-        if(ti % 7 == 0 and ti > 0):
-            add_exogenous_cases(nodes, exogenous_rate)
+        # TODO(jordan): Modularize this rate
+        if(global_time % 7 == 0 and global_time > 0):
+            add_exogenous_cases(rng, nodes, exogenous_rate)
     
         # Daily counts
-        infected, recovered, susceptible = 0, 0, 0
+        susceptible, infected, recovered = 0, 0, 0
         for node in nodes:
-            if(node.state == 0):
+            if(node.state == 'susceptible'):
                 susceptible += 1
-            elif(node.state == 4):
+            elif(node.state == 'recovered'):
                 recovered += 1
             else:
                 infected += 1
 
-            node.update(rng, g.neighbors(node.index), nodes, transmission_rate, ti, test_rate)
+            # Update the node
+            node.update(rng, global_time, state_settings, spread_settings, test_settings)
 
         # Save data (["infected", "recovered", "susceptible"])
         for state in data:
-            data[state] = data[state].append({'day': ti, 'cases': eval(state)}, ignore_index = True)
+            data[state] = data[state].append({'day': global_time, 'cases': eval(state)}, ignore_index = True)
 
-    totalRecovered = 0
-    totalSpreadTo = 0
-    totalTests = 0
+    total_recovered = 0
+    total_spread_to = 0
+    total_tests = 0
 
-    # rt calculating
+    # R_0 calculating
     for node in nodes:
-        totalTests += node.testsTaken
-        if(node.indexCase):
-            totalRecovered += 1
-            totalSpreadTo += node.rt
+        total_tests += node.test.count
+        if(node.index_case):
+            total_recovered += 1
+            total_spread_to += node.nodes_infected
 
-    # return (rt, cost of tests)
-    return((totalSpreadTo / totalRecovered), totalTests)
+    r_0 = total_spread_to / total_recovered
 
-def simulationContainer(ax, testRate, rt, X, sampleSize):
+    return(r_0, total_tests)
+
+def simulation_container(ax, testRate, r_0, X, sampleSize):
     data = {
         "infected": pd.DataFrame(),
         "recovered": pd.DataFrame(),

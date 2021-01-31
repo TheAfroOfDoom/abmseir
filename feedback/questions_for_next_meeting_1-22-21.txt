@@ -18,3 +18,9 @@ How should I handle float values from exponential distribution?
 Should we use a geometric distribution instead?
 * https://stackoverflow.com/a/24396275/13789724
 * seems identical to exponential distrib., just discrete instead of continuous
+
+===> exp./geo. distribution is just bad for this, maybe use normal instead
+what is stdev???
+
+error with Paltiel paper on page 3 parameter table?:
+    rate of symptom development does not depend on R0/Rt in the src code
