@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/26/2021
+# Last Modified: 01/29/2021
 # Modified By: Jordan Williams
 ###
 
@@ -53,7 +53,7 @@ def wattsstrogatz_graph(args):
     # Seed rng
     random.seed(rng)
 
-    g = nx.Graph();
+    g = nx.Graph()
     # Keep track of what edges we will randomly choose from.
     # Start with a complete list of all possible edges.
     remaining_edges = import_graph('complete', [n])
