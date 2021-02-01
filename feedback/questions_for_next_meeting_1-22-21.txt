@@ -24,3 +24,5 @@ what is stdev???
 
 error with Paltiel paper on page 3 parameter table?:
     rate of symptom development does not depend on R0/Rt in the src code
+
+still need Fall data to be able to set parameters and compare model to
