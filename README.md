@@ -52,6 +52,7 @@ py graphStats.py
 Strogatz-Watts Graph with 1500 nodes, mean node degree 43, and diameter 3.
 
 ---
-## Authors
-* Jordan Williams (@TheAfroOfDoom)
+## Contributors
+* Jordan Williams ([@TheAfroOfDoom](https://github.com/theafroofdoom))
 * Alana McGraw
+* Aidan Tokarski ([@aidant19](https://github.com/aidant19))

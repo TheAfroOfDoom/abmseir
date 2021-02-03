@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/30/2021
+# Last Modified: 02/03/2021
 # Modified By: Jordan Williams
 ###
 
@@ -61,7 +61,7 @@ def calculate_infection_rate(graph, node_degree, desired_rt, error):
 
     return(infection_rate)
 
-# TODO(jordan): Make something that doesn't fucking suck
+# TODO(jordan): Probably make this a gaussian distribution (need stdev)
 def geometric_by_mean(rng, mean):
     # https://en.wikipedia.org/wiki/Geometric_distribution (mean = 1 / p)
     p = 1 / (mean)
