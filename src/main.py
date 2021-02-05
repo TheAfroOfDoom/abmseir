@@ -29,4 +29,4 @@ if __name__ == '__main__':
 
     # Run simulation on current active graph
     simulation = sim.Simulation(g)
-    simulation.simulationContainer(2, 1, 10, 50)
+    simulation.simulationContainer()

@@ -17,14 +17,8 @@ import config
 # from log_handler import logging as log
 
 # Packages
-import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
-import os
 import pandas as pd
-import random
-import seaborn as sns
-import sys
 
 class Simulation:
     def __init__(self, g):
@@ -35,17 +29,94 @@ class Simulation:
         self.base_infection_rate = config.settings['simulation']['properties']['scenarios']
         self.test_cost = config.settings['simulation']['properties']['testing']['cost']
         self.time_step = 0
-
+        self.test_rate = 2
+        self.sample_size = 10
+        self.exogenous_rate = 10
+        self.initial_infected_count = 10
+        self.transmission_rate = 0.3
+        self.exp_rt = 0
+        self.test_cost = 0
+    
     def generate_nodes(self):
         nodes = []
         for node_index in self.g.nodes():
             nodes.append(Node(self.rng, node_index))
 
-        # May result in added time complexity, could be optimized
+        # TODO(aidan) May result in added time complexity, could be optimized
         for node in nodes:
             node.set_neighbors(self.g.neighbors(node.index), nodes)
 
         return nodes
+
+    def simulationContainer(self):
+        data = {
+            "infected": pd.DataFrame(),
+            "recovered": pd.DataFrame(),
+            "susceptible": pd.DataFrame()
+        }
+        for _ in range(self.time_horizon):
+            for state in data:
+                data[state].append([])
+        
+        for _ in range(self.sample_size):
+            result = self.run_simulation(data)
+            self.exp_rt += result[0]
+            self.test_cost += result[1]
+        self.exp_rt /= self.sample_size
+        test_cost = self.test_cost * self.test_cost / self.sample_size
+
+        print("Test rate: %s, beta: %.2f%%, X: %d | Rt %d trials: %.2f" % (str(self.test_rate), 100 * self.transmission_rate, self.exogenous_rate, self.exp_rt, self.sample_size))
+
+        # Calculate total (mean + std) infected + recovered
+        dfInfected, dfRecovered = data["infected"], data["recovered"]
+        dfTotalCases = dfInfected.loc[dfInfected['day'] == self.time_horizon - 1]['cases'] + dfRecovered.loc[dfRecovered['day'] == self.time_horizon - 1]['cases']
+        meanTotalCases, stdTotalCases = dfTotalCases.mean(), dfTotalCases.std()
+
+    def run_simulation(self, data):
+
+        # Randomly infect `initial_infected_count` nodes
+        initial_infected_nodes = self.rng.choice(len(self.nodes), self.initial_infected_count, replace = False)
+        for chosen_node in initial_infected_nodes:
+            node = self.nodes[chosen_node]
+            node.get_infected(14)
+            node.index_case = True
+
+        for i in range(self.time_horizon):
+            self.time_step = i
+
+            # Add exogenous infections weekly, after the first week
+            if(self.time_step % 7 == 0 and self.time_step > 0):
+                self.add_exogenous_cases(self.exogenous_rate)
+        
+            # Daily counts
+            infected, recovered, susceptible = 0, 0, 0
+            for node in self.nodes:
+                if(node.state == 0):
+                    susceptible += 1
+                elif(node.state == 4):
+                    recovered += 1
+                else:
+                    infected += 1
+
+                node.update(self.rng, self.time_step, self.transmission_rate, self.test_rate)
+
+            # Save data (["infected", "recovered", "susceptible"])
+            for state in data:
+                data[state] = data[state].append({'day': self.time_step, 'cases': eval(state)}, ignore_index = True)
+
+        total_recovered = 0
+        total_spread_to = 0
+        total_tests = 0
+
+        # rt calculating
+        for node in self.nodes:
+            total_tests += node.test.count
+            if(node.index_case):
+                total_recovered += 1
+                total_spread_to += node.nodes_infected
+
+        # return (rt, cost of tests)
+        return((total_spread_to / total_recovered), total_tests)
 
     def calculate_infection_rate(self, node_degree, desired_rt, error):
         '''Calculates the infection rate for a desired `Rt` value
@@ -98,78 +169,6 @@ class Simulation:
         chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
         for i in chosen_indices:
             self.nodes[i].get_exposed()
-
-    def run_simulation(self, time_span, initial_infected_count, data, transmission_rate, exogenous_rate, test_rate):
-
-        # Randomly infect `initial_infected_count` nodes
-        initial_infected_nodes = self.rng.choice(len(self.nodes), initial_infected_count, replace = False)
-        for chosen_node in initial_infected_nodes:
-            node = self.nodes[chosen_node]
-            node.get_infected(14)
-            node.index_case = True
-
-        for time_step in range(time_span):
-            self.time_step = time_step
-
-            # Add exogenous infections weekly, after the first week
-            if(time_step % 7 == 0 and time_step > 0):
-                self.add_exogenous_cases(exogenous_rate)
-        
-            # Daily counts
-            infected, recovered, susceptible = 0, 0, 0
-            for node in self.nodes:
-                if(node.state == 0):
-                    susceptible += 1
-                elif(node.state == 4):
-                    recovered += 1
-                else:
-                    infected += 1
-
-                node.update(self.rng, self.time_step, transmission_rate, test_rate)
-
-            # Save data (["infected", "recovered", "susceptible"])
-            for state in data:
-                data[state] = data[state].append({'day': self.time_step, 'cases': eval(state)}, ignore_index = True)
-
-        totalRecovered = 0
-        totalSpreadTo = 0
-        totalTests = 0
-
-        # rt calculating
-        for node in self.nodes:
-            totalTests += node.test.count
-            if(node.index_case):
-                totalRecovered += 1
-                totalSpreadTo += node.nodes_infected
-
-        # return (rt, cost of tests)
-        return((totalSpreadTo / totalRecovered), totalTests)
-
-    def simulationContainer(self, testRate, rt, X, sampleSize):
-        data = {
-            "infected": pd.DataFrame(),
-            "recovered": pd.DataFrame(),
-            "susceptible": pd.DataFrame()
-        }
-        for _ in range(self.time_horizon):
-            for state in data:
-                data[state].append([])
-        
-        transmissionRate = self.base_infection_rate[rt]['rt']
-        expRt, testCost = 0, 0
-        for _ in range(sampleSize):
-            result = self.run_simulation(self.time_horizon, X, data, transmissionRate, X, testRate)
-            expRt += result[0]
-            testCost += result[1]
-        expRt /= sampleSize
-        testCost = testCost * self.test_cost / sampleSize
-
-        print("Test rate: %s, beta: %.2f%%, X: %d | Rt %d trials: %.2f" % (str(testRate), 100 * transmissionRate, X, sampleSize, expRt))
-
-        # Calculate total (mean + std) infected + recovered
-        dfInfected, dfRecovered = data["infected"], data["recovered"]
-        dfTotalCases = dfInfected.loc[dfInfected['day'] == self.time_horizon - 1]['cases'] + dfRecovered.loc[dfRecovered['day'] == self.time_horizon - 1]['cases']
-        meanTotalCases, stdTotalCases = dfTotalCases.mean(), dfTotalCases.std()
 
 
 class Test:
