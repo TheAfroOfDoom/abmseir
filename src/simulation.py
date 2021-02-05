@@ -12,8 +12,9 @@ Simulates the infectious spread across a community (graph) based on parameters d
 """
 
 # Modules
+from datetime import time
 import config
-from log_handler import logging as log
+# from log_handler import logging as log
 
 # Packages
 import matplotlib.pyplot as plt
@@ -27,16 +28,24 @@ import sys
 
 class Simulation:
     def __init__(self, g):
+        self.rng = np.random.default_rng()
         self.g = g
-        self.nodes = self.get_nodes()
+        self.nodes = self.generate_nodes()
         self.time_horizon = config.settings['simulation']['properties']['time_horizon']
-        self.base_infection_rate = config.settings['simulation']['properties']['scenarios'][2]
+        self.base_infection_rate = config.settings['simulation']['properties']['scenarios']
         self.test_cost = config.settings['simulation']['properties']['testing']['cost']
+        self.time_step = 0
 
-    def get_nodes(self):
+    def generate_nodes(self):
         nodes = []
         for node_index in self.g.nodes():
-            nodes.append(Node(node_index))
+            nodes.append(Node(self.rng, node_index))
+
+        # May result in added time complexity, could be optimized
+        for node in nodes:
+            node.set_neighbors(self.g.neighbors(node.index), nodes)
+
+        return nodes
 
     def calculate_infection_rate(self, node_degree, desired_rt, error):
         '''Calculates the infection rate for a desired `Rt` value
@@ -69,7 +78,7 @@ class Simulation:
 
         return(infection_rate)
 
-    def add_exogenous_cases(self, amount, rng):
+    def add_exogenous_cases(self, amount):
         '''Sets a number of cases specified by `amount` to exposed.
         This represents cases coming onto campus from outside sources,
         e.g. an individual getting infected while visiting home.
@@ -81,31 +90,30 @@ class Simulation:
         # just expose the rest.
         if(len(susceptible_nodes) <= amount):
             for i in susceptible_nodes:
-                self.nodes[i].getExposed()
+                self.nodes[i].get_exposed()
             return
 
         # Randomly choose an `amount` of susceptible nodes to expose.
         # The `replace` parameter ensures we don't choose duplicates.
-        chosen_indices = rng.choice(susceptible_nodes, amount, replace = False)
+        chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
         for i in chosen_indices:
             self.nodes[i].get_exposed()
 
     def run_simulation(self, time_span, initial_infected_count, data, transmission_rate, exogenous_rate, test_rate):
 
-        # Initialize numpy random number generator
-        rng = np.random.default_rng()
-
         # Randomly infect `initial_infected_count` nodes
-        initial_infected_nodes = rng.choice(len(self.nodes), initial_infected_count, replace = False)
+        initial_infected_nodes = self.rng.choice(len(self.nodes), initial_infected_count, replace = False)
         for chosen_node in initial_infected_nodes:
             node = self.nodes[chosen_node]
-            node.change_state('infected')
+            node.get_infected(14)
             node.index_case = True
 
-        for ti in range(time_span):
+        for time_step in range(time_span):
+            self.time_step = time_step
+
             # Add exogenous infections weekly, after the first week
-            if(ti % 7 == 0 and ti > 0):
-                self.add_exogenous_cases(self.nodes, exogenous_rate)
+            if(time_step % 7 == 0 and time_step > 0):
+                self.add_exogenous_cases(exogenous_rate)
         
             # Daily counts
             infected, recovered, susceptible = 0, 0, 0
@@ -117,11 +125,11 @@ class Simulation:
                 else:
                     infected += 1
 
-                node.update(rng, self.g.neighbors(node.index), self.nodes, transmission_rate, ti, test_rate)
+                node.update(self.rng, self.time_step, transmission_rate, test_rate)
 
             # Save data (["infected", "recovered", "susceptible"])
             for state in data:
-                data[state] = data[state].append({'day': ti, 'cases': eval(state)}, ignore_index = True)
+                data[state] = data[state].append({'day': self.time_step, 'cases': eval(state)}, ignore_index = True)
 
         totalRecovered = 0
         totalSpreadTo = 0
@@ -129,15 +137,15 @@ class Simulation:
 
         # rt calculating
         for node in self.nodes:
-            totalTests += node.testsTaken
-            if(node.indexCase):
+            totalTests += node.test.count
+            if(node.index_case):
                 totalRecovered += 1
-                totalSpreadTo += node.rt
+                totalSpreadTo += node.nodes_infected
 
         # return (rt, cost of tests)
         return((totalSpreadTo / totalRecovered), totalTests)
 
-    def simulationContainer(self, ax, testRate, rt, X, sampleSize):
+    def simulationContainer(self, testRate, rt, X, sampleSize):
         data = {
             "infected": pd.DataFrame(),
             "recovered": pd.DataFrame(),
@@ -147,7 +155,7 @@ class Simulation:
             for state in data:
                 data[state].append([])
         
-        transmissionRate = self.base_infection_rate[rt]
+        transmissionRate = self.base_infection_rate[rt]['rt']
         expRt, testCost = 0, 0
         for _ in range(sampleSize):
             result = self.run_simulation(self.time_horizon, X, data, transmissionRate, X, testRate)
@@ -158,15 +166,10 @@ class Simulation:
 
         print("Test rate: %s, beta: %.2f%%, X: %d | Rt %d trials: %.2f" % (str(testRate), 100 * transmissionRate, X, sampleSize, expRt))
 
-        for state in data:
-            sns.lineplot(data = data[state], x = 'day', y = 'cases', ax = ax)
-
         # Calculate total (mean + std) infected + recovered
         dfInfected, dfRecovered = data["infected"], data["recovered"]
         dfTotalCases = dfInfected.loc[dfInfected['day'] == self.time_horizon - 1]['cases'] + dfRecovered.loc[dfRecovered['day'] == self.time_horizon - 1]['cases']
         meanTotalCases, stdTotalCases = dfTotalCases.mean(), dfTotalCases.std()
-
-        ax.set_title(r"$R_t$: %.2f, C: %.2f, $\bar{x}$: %.1f, $\sigma_x$: %.1f" % (expRt, testCost, meanTotalCases, stdTotalCases))
 
 
 class Test:
@@ -193,13 +196,17 @@ class Test:
         self.delay = 0
         self.processing_results = False
 
-    def update(self, global_time, test_settings, time_to_recovery):
+        # Test settings
+        self.sensitivity = 0.7
+        self.specificity = 0.98
+        self.test_delay = 1
+
+    def update(self, global_time, test_rate, time_to_recovery):
         '''Runs once per cycle per node, updating its test information as follows:
         1. Waits for the test result's delay
             - Updates its node based on the results
         2. 
         '''
-        test_rate = test_settings['test_rate']
 
         # If we are waiting on the latest test results, decrement the delay we are waiting
         if(self.processing_results):
@@ -219,29 +226,26 @@ class Test:
 
         # Get tested if the above conditions pass
         if(bool_should_get_tested):
-            self.take(test_settings)
+            self.take()
 
         # Receive test results Y days after being tested (if not quarantined)
         if(self.processing_results
         and self.delay == 0):
             self.get_test_results(time_to_recovery)
 
-    def take(self, test_settings):
+    def take(self):
         '''Simulates a node taking a COVID test.
         Returns a boolean based on sensitivity/specificity parameters
         and whether or not the node is actually infected or not.
         '''
-        sensitivity = test_settings['sensitivity']
-        specificity = test_settings['specificity']
-        test_results_delay = test_settings['test_results_delay']
 
         # Increment the amount of tests this node has taken
         self.count += 1
 
         # Use positive rates for infected individuals
-        if(self.state == 'infected asymptomatic'
-        or self.state == 'infected symptomatic'):
-            if(self.rng.random() <= sensitivity):
+        if(self.node.state == 'infected asymptomatic'
+        or self.node.state == 'infected symptomatic'):
+            if(self.rng.random() <= self.sensitivity):
                 self.results = True
             else:
                 self.results = False
@@ -249,14 +253,14 @@ class Test:
 
         # Use negative rates for susceptible/exposed/recovered individuals
         else:
-            if(self.rng.random() <= specificity):
+            if(self.rng.random() <= self.specificity):
                 self.results = False
                 pass
             else:
                 self.results = True
                 
         self.processing_results = True
-        self.delay = geometric_by_mean(self.rng, test_results_delay)
+        self.delay = geometric_by_mean(self.rng, self.test_delay)
 
     def get_test_results(self, time_to_recovery):
         '''After the delay in receiving test results, sets the
@@ -284,14 +288,20 @@ class Node:
 
         self.test = Test(rng, self)
 
+        self.neighbors = []
+
     def __str__(self):
         return(self.state)
+
+    def set_neighbors(self, neighbor_indices, nodes):
+        for i in neighbor_indices:
+            self.neighbors.append(nodes[i])
 
     def get_exposed(self):
         self.state = 'exposed'
 
         # Pull from geometric distribution with mean = `time_to_infection`
-        self.state_time = geometric_by_mean(self.rng, self.time_to_infection)
+        self.state_time = geometric_by_mean(self.rng, 7) # -change-
 
     def get_infected(self, time_to_recovery):
         self.state = 'infected'
@@ -299,7 +309,7 @@ class Node:
         # Pull from geometric distribution with mean = `time_to_recovery`
         self.state_time = geometric_by_mean(self.rng, time_to_recovery)
 
-    def update(self, rng, global_time, spread_settings, test_settings, state_settings):
+    def update(self, rng, global_time, transmission_rate, test_settings):
         '''Runs once per cycle per node, updating a node based on it's state.
         1. Susceptible: do nothing
         2. Exposed: change to infected state after mean incubation period (3 days)
@@ -309,14 +319,12 @@ class Node:
         # Update the amount of time we have left to spend in the current state
         self.state_time -= 1
 
-        # Grab state settings
-        self.time_to_infection       = state_settings['time_to_infection'] # A.K.A. incubation time
-        self.time_to_recovery        = state_settings['time_to_recovery']
-        self.symptoms_probability    = state_settings['symptoms_probability']
-        #time_to_symptoms        = state_settings['time_to_symptoms']
+        self.time_to_infection       = 3 # -change-
+        self.time_to_recovery        = 14 # -change-
+        self.symptoms_probability    = 0.3 # -change-
 
         # Update test properties
-        self.test.update(self, global_time, test_settings, self.time_to_recovery)
+        self.test.update(global_time, test_settings, self.time_to_recovery)
 
         # susceptible
         if(self.state == 'susceptible'):
@@ -343,7 +351,7 @@ class Node:
 
                 # Spread if not quarantined
                 if(self.quarantine_time == 0):
-                    self.spread(spread_settings)
+                    self.spread(transmission_rate)
 
                 # TODO(jordan): If symptomatic, die with some probability (0.0005)
 
@@ -351,24 +359,19 @@ class Node:
         elif(self.state == 'recovered'):
             pass
 
-    def spread(self, spread_settings):
+    def spread(self, transmission_rate):
         '''Spreads an infection with some probability `transmission_rate`
         to its neighboring nodes.
         '''
-        neighbors = spread_settings['neighbors']
-        nodes = spread_settings['nodes']
-        transmission_rate = spread_settings['transmission_rate']
         
         # Iterate through the node's neighbors
-        for neighbor_index in neighbors:
-            # Select a specific neighboring node
-            neighbor_node = nodes[neighbor_index]
+        for neighbor in self.neighbors:
 
             # Spread to this specific neighbor...
-            if( neighbor_node.state == 'infected'           #       if the neighbor is susceptible
-            and neighbor_node.quarantine_time == 0          # and   if the neighbor is not quarantined
+            if( neighbor.state == 'infected'           #       if the neighbor is susceptible
+            and neighbor.quarantine_time == 0          # and   if the neighbor is not quarantined
             and self.rng.random() <= transmission_rate):    # and   if the random chance succeeds
-                neighbor_node.get_exposed()
+                neighbor.get_exposed()
 
                 # Count R0 cases (cases caused by index cases)
                 if(self.index_case == True):

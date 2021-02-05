@@ -25,8 +25,8 @@ if __name__ == '__main__':
     log = log_handler.logging
 
     # Import the active graph
-    g = graph_handler.import_graph()
+    g = graph_handler.complete_graph([1000])
 
     # Run simulation on current active graph
     simulation = sim.Simulation(g)
-    simulation.simulationContainer()
+    simulation.simulationContainer(2, 1, 10, 50)
