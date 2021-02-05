@@ -26,9 +26,9 @@ class Simulation:
         self.g = g
         self.nodes = self.generate_nodes()
         self.time_horizon = config.settings['simulation']['properties']['time_horizon']
+        self.time = 0
         self.base_infection_rate = config.settings['simulation']['properties']['scenarios']
         self.test_cost = config.settings['simulation']['properties']['testing']['cost']
-        self.time_step = 0
         self.test_rate = 2
         self.sample_size = 10
         self.exogenous_rate = 10
@@ -36,6 +36,7 @@ class Simulation:
         self.transmission_rate = 0.3
         self.exp_rt = 0
         self.test_cost = 0
+        self.time_to_recovery = 14
     
     def generate_nodes(self):
         nodes = []
@@ -78,14 +79,14 @@ class Simulation:
         initial_infected_nodes = self.rng.choice(len(self.nodes), self.initial_infected_count, replace = False)
         for chosen_node in initial_infected_nodes:
             node = self.nodes[chosen_node]
-            node.get_infected(14)
+            node.get_infected(self.time_to_recovery)
             node.index_case = True
 
         for i in range(self.time_horizon):
-            self.time_step = i
+            self.time = i
 
             # Add exogenous infections weekly, after the first week
-            if(self.time_step % 7 == 0 and self.time_step > 0):
+            if(self.time % 7 == 0 and self.time > 0):
                 self.add_exogenous_cases(self.exogenous_rate)
         
             # Daily counts
@@ -98,11 +99,11 @@ class Simulation:
                 else:
                     infected += 1
 
-                node.update(self.rng, self.time_step, self.transmission_rate, self.test_rate)
+                node.update(self.rng, self.time, self.transmission_rate, self.test_rate)
 
             # Save data (["infected", "recovered", "susceptible"])
             for state in data:
-                data[state] = data[state].append({'day': self.time_step, 'cases': eval(state)}, ignore_index = True)
+                data[state] = data[state].append({'day': self.time, 'cases': eval(state)}, ignore_index = True)
 
         total_recovered = 0
         total_spread_to = 0
@@ -117,6 +118,27 @@ class Simulation:
 
         # return (rt, cost of tests)
         return((total_spread_to / total_recovered), total_tests)
+
+    def add_exogenous_cases(self, amount):
+        '''Sets a number of cases specified by `amount` to exposed.
+        This represents cases coming onto campus from outside sources,
+        e.g. an individual getting infected while visiting home.
+        '''
+        # Susceptible nodes
+        susceptible_nodes = [node.index for node in self.nodes if node.state == 'susceptible']
+        
+        # If there aren't enough susceptible nodes remaining to infected,
+        # just expose the rest.
+        if(len(susceptible_nodes) <= amount):
+            for i in susceptible_nodes:
+                self.nodes[i].get_exposed()
+            return
+
+        # Randomly choose an `amount` of susceptible nodes to expose.
+        # The `replace` parameter ensures we don't choose duplicates.
+        chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
+        for i in chosen_indices:
+            self.nodes[i].get_exposed()
 
     def calculate_infection_rate(self, node_degree, desired_rt, error):
         '''Calculates the infection rate for a desired `Rt` value
@@ -148,27 +170,6 @@ class Simulation:
                 break
 
         return(infection_rate)
-
-    def add_exogenous_cases(self, amount):
-        '''Sets a number of cases specified by `amount` to exposed.
-        This represents cases coming onto campus from outside sources,
-        e.g. an individual getting infected while visiting home.
-        '''
-        # Susceptible nodes
-        susceptible_nodes = [node.index for node in self.nodes if node.state == 'susceptible']
-        
-        # If there aren't enough susceptible nodes remaining to infected,
-        # just expose the rest.
-        if(len(susceptible_nodes) <= amount):
-            for i in susceptible_nodes:
-                self.nodes[i].get_exposed()
-            return
-
-        # Randomly choose an `amount` of susceptible nodes to expose.
-        # The `replace` parameter ensures we don't choose duplicates.
-        chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
-        for i in chosen_indices:
-            self.nodes[i].get_exposed()
 
 
 class Test:
