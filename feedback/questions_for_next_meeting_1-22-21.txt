@@ -9,7 +9,7 @@ Q1: Should I include exogenous cases in Rt calculations?
     * Rt = infections from Gen1 -> Gen2? + exogenous cases in Gen2 period of time
 
 Scratch notes for true Rt -> infection rate calculation:
-Rt = beta * 
+R0 = beta / gamma / k
 
 How should I handle float values from exponential distribution?
 * Round?    -> would lead to a fair amount of 0s = e.g. instant state transfer from susceptible -> exposed -> infected
