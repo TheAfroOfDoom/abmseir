@@ -3,7 +3,7 @@
 # Created: 12/06/2020
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/26/2021
+# Last Modified: 02/06/2021
 # Modified By: Jordan Williams
 ###
 
@@ -25,9 +25,10 @@ if __name__ == '__main__':
     log = log_handler.logging
 
     # Import the active graph
-    g = graph_handler.complete_graph([5000])
+    g = graph_handler.import_graph()
 
     # Run simulation on current active graph
     simulation = Simulation(g)
-    simulation.run_step()
-    print(simulation.data.get("infected"))
+    #for _ in range(100):
+        #simulation.run_step()
+    log.info(simulation.data)

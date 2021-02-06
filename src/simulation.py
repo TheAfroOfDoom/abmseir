@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/29/2021
+# Last Modified: 02/06/2021
 # Modified By: Jordan Williams
 ###
 
@@ -14,7 +14,7 @@ Simulates the infectious spread across a community (graph) based on parameters d
 # Modules
 from datetime import time
 import config
-# from log_handler import logging as log
+from log_handler import logging as log
 
 # Packages
 import numpy as np
@@ -22,7 +22,7 @@ import pandas as pd
 
 class Simulation:
     def __init__(self, g):
-        self.rng = np.random.default_rng()
+        self.rng = np.random.default_rng() # TODO(jordan): Log this seed
         self.g = g
         self.nodes = self.generate_nodes()
         self.time_horizon = config.settings['simulation']['properties']['time_horizon']
@@ -30,13 +30,20 @@ class Simulation:
         self.base_infection_rate = config.settings['simulation']['properties']['scenarios']
         self.test_cost = config.settings['simulation']['properties']['testing']['cost']
         self.data = self.generate_data_container()
-        self.test_rate = 2
         self.sample_size = 10
         self.exogenous_rate = 10
         self.initial_infected_count = 10
-        self.transmission_rate = (1.5 * (1/14 + 3/98))/4999
+        self.transmission_rate = (1.5 * (1/14)) / 4999
         self.exp_rt = 0
         self.time_to_recovery = 14
+
+        self.all_states = [
+            'susceptible',
+            'exposed',
+            'infected',
+            'recovered'
+            ]
+            
         self.pre_step()
     
     def generate_nodes(self):
@@ -51,47 +58,44 @@ class Simulation:
         return nodes
 
     def generate_data_container(self):
-        data = {
-            "infected": pd.DataFrame(),
-            "recovered": pd.DataFrame(),
-            "susceptible": pd.DataFrame()
-        }
-        for _ in range(self.time_horizon):
-            for state in data:
-                data[state].append([])
+        data = pd.DataFrame(dtype = int, columns = [
+            "susceptible",
+            "exposed",
+            "infected", # TODO(jordan): Distinguish between asymp./symp. infected?
+            "recovered"
+        ])
         return data
 
     def pre_step(self):
         # Randomly infect `initial_infected_count` nodes
         initial_infected_nodes = self.rng.choice(len(self.nodes), self.initial_infected_count, replace = False)
-        for chosen_node in initial_infected_nodes:
-            node = self.nodes[chosen_node]
-            node.get_infected(self.time_to_recovery)
-            node.index_case = True
+        for chosen_node_index in initial_infected_nodes:
+            chosen_node = self.nodes[chosen_node_index]
+            chosen_node.get_infected(self.time_to_recovery)
+            chosen_node.index_case = True
+        log.debug(initial_infected_nodes)
+
         self.run_step()
 
     def run_step(self):
-
         # Add exogenous infections weekly, after the first week
         if(self.time % 7 == 0 and self.time > 0):
             self.add_exogenous_cases(self.exogenous_rate)
     
         # Daily counts
-        infected, recovered, susceptible = 0, 0, 0
+        data_per_state = {}
+        for state in self.all_states:
+            data_per_state[state] = 0
+
         for node in self.nodes:
-            if(node.state == 0):
-                susceptible += 1
-            elif(node.state == 4):
-                recovered += 1
-            else:
-                infected += 1
+            data_per_state[node.state] += 1
 
-            node.update(self.rng, self.time, self.transmission_rate, self.test_rate)
+            node.update(self.rng, self.time, self.transmission_rate)
 
-        # Save data (["infected", "recovered", "susceptible"])
-        for state in self.data:
-            self.data[state] = self.data[state].append({'day': self.time, 'cases': eval(state)}, ignore_index = True)
+        # Save data
+        self.data = self.data.append(data_per_state, ignore_index = True)
 
+        # Increment global time
         self.time += 1
 
     def add_exogenous_cases(self, amount):
@@ -146,7 +150,6 @@ class Simulation:
 
         return(infection_rate)
 
-
 class Test:
     '''Handles everything related to a node's testing:
     1. How many tests it has taken
@@ -175,8 +178,9 @@ class Test:
         self.sensitivity = 0.7
         self.specificity = 0.98
         self.test_delay = 1
+        self.rate = None
 
-    def update(self, global_time, test_rate, time_to_recovery):
+    def update(self, global_time, time_to_recovery):
         '''Runs once per cycle per node, updating its test information as follows:
         1. Waits for the test result's delay
             - Updates its node based on the results
@@ -187,17 +191,18 @@ class Test:
         if(self.processing_results):
             self.delay -= 1
 
-        # Determine if we should get tested                         # Only test if:
-        bool_should_get_tested  =   isinstance(test_rate, int)      #       `test_rate` is numerical
-        bool_should_get_tested &=   test_rate != 0                  # and   if `test_rate` is not 0
-        bool_should_get_tested &=   global_time % test_rate == 0    # and   if the current `global_time` is
-                                                                    #       divisible by our `test_rate`
+        # Determine if we should get tested
+        bool_should_get_tested  =   (                                   # Only test if:
+                                    isinstance(self.rate, int)          #       `self.rate` is numerical
+                                    and self.rate != 0                  # and   if `self.rate` is not 0
+                                    and global_time % self.rate == 0    # and   if the current `global_time` is
+                                    )                                   #       divisible by our `self.rate`
 
-        bool_should_get_tested |=   (test_rate == 'symptom-based'   # or    if we are testing based on symptoms,
-                                    and self.node.symptoms)         #       and our node is symptomatic
+        bool_should_get_tested |=   (self.rate == 'symptom-based'       # or    if we are testing based on symptoms,
+                                    and self.node.symptoms)             #       and our node is symptomatic
 
-        bool_should_get_tested &=   global_time > 0                 # and   if this isn't the first day of the simulation
-        bool_should_get_tested &=   self.node.quarantine_time == 0  # and   if we aren't in quarantine
+        bool_should_get_tested &=   global_time > 0                     # and   if this isn't the first day of the simulation
+        bool_should_get_tested &=   self.node.quarantine_time == 0      # and   if we aren't in quarantine
 
         # Get tested if the above conditions pass
         if(bool_should_get_tested):
@@ -284,7 +289,7 @@ class Node:
         # Pull from geometric distribution with mean = `time_to_recovery`
         self.state_time = geometric_by_mean(self.rng, time_to_recovery)
 
-    def update(self, rng, global_time, transmission_rate, test_settings):
+    def update(self, rng, global_time, transmission_rate):
         '''Runs once per cycle per node, updating a node based on it's state.
         1. Susceptible: do nothing
         2. Exposed: change to infected state after mean incubation period (3 days)
@@ -299,7 +304,7 @@ class Node:
         self.symptoms_probability    = 0.3 # -change-
 
         # Update test properties
-        self.test.update(global_time, test_settings, self.time_to_recovery)
+        self.test.update(global_time, self.time_to_recovery)
 
         # susceptible
         if(self.state == 'susceptible'):

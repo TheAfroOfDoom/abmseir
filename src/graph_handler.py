@@ -3,12 +3,12 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/26/2021
+# Last Modified: 02/06/2021
 # Modified By: Jordan Williams
 ###
 
 """
-Reads a graph file (`*.edgelist`) from the configured directory according to parameters
+Reads a graph file (`*.adjlist`) from the configured directory according to parameters
 if it exists, or generates and writes a new one if not.
 """
 
@@ -152,7 +152,7 @@ def build_file_name(graph_type = None, args = None, rng = None):
     return(name)
 
 def import_graph(graph_type = None, graph_args = None, rng = None):
-    '''Reads a graph file (`*.edgelist`) from the configured directory according to parameters if it exists,
+    '''Reads a graph file (`*.adjlist`) from the configured directory according to parameters if it exists,
     or generates and writes a new one if not.
     '''
     # Read graph type from config as lowercase, stripping non-alphanumeric characters
@@ -184,7 +184,7 @@ def import_graph(graph_type = None, graph_args = None, rng = None):
     path = './' + config.settings['graph']['directory'] + file_name
     try:
         log.info("Attempting to read graph from '%s'..." % (path))
-        g = nx.read_edgelist(path, nodetype = int)
+        g = nx.read_adjlist(path, nodetype = int)
         log.info("Graph successfully read from '%s'..." % (path))
     except:
         log.info("Failed to read graph from '%s'. Generating..." % (path))
@@ -205,7 +205,7 @@ def import_graph(graph_type = None, graph_args = None, rng = None):
         t1 = timeit.default_timer()
 
         # Save graph to file
-        nx.write_edgelist(g, path)
+        nx.write_adjlist(g, path)
         log.info("Wrote new graph to '%s' (took %.6fs)." % (path, t1 - t0))
 
     # Return graph to caller function
