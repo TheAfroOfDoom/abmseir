@@ -29,14 +29,15 @@ class Simulation:
         self.time = 0
         self.base_infection_rate = config.settings['simulation']['properties']['scenarios']
         self.test_cost = config.settings['simulation']['properties']['testing']['cost']
+        self.data = self.generate_data_container()
         self.test_rate = 2
         self.sample_size = 10
         self.exogenous_rate = 10
         self.initial_infected_count = 10
         self.transmission_rate = 0.3
         self.exp_rt = 0
-        self.test_cost = 0
         self.time_to_recovery = 14
+        self.pre_step()
     
     def generate_nodes(self):
         nodes = []
@@ -49,7 +50,7 @@ class Simulation:
 
         return nodes
 
-    def simulationContainer(self):
+    def generate_data_container(self):
         data = {
             "infected": pd.DataFrame(),
             "recovered": pd.DataFrame(),
@@ -58,23 +59,9 @@ class Simulation:
         for _ in range(self.time_horizon):
             for state in data:
                 data[state].append([])
-        
-        for _ in range(self.sample_size):
-            result = self.run_simulation(data)
-            self.exp_rt += result[0]
-            self.test_cost += result[1]
-        self.exp_rt /= self.sample_size
-        test_cost = self.test_cost * self.test_cost / self.sample_size
+        return data
 
-        print("Test rate: %s, beta: %.2f%%, X: %d | Rt %d trials: %.2f" % (str(self.test_rate), 100 * self.transmission_rate, self.exogenous_rate, self.exp_rt, self.sample_size))
-
-        # Calculate total (mean + std) infected + recovered
-        dfInfected, dfRecovered = data["infected"], data["recovered"]
-        dfTotalCases = dfInfected.loc[dfInfected['day'] == self.time_horizon - 1]['cases'] + dfRecovered.loc[dfRecovered['day'] == self.time_horizon - 1]['cases']
-        meanTotalCases, stdTotalCases = dfTotalCases.mean(), dfTotalCases.std()
-
-    def run_simulation(self, data):
-
+    def pre_step(self):
         # Randomly infect `initial_infected_count` nodes
         initial_infected_nodes = self.rng.choice(len(self.nodes), self.initial_infected_count, replace = False)
         for chosen_node in initial_infected_nodes:
@@ -82,28 +69,27 @@ class Simulation:
             node.get_infected(self.time_to_recovery)
             node.index_case = True
 
-        for i in range(self.time_horizon):
-            self.time = i
+    def run_step(self):
 
-            # Add exogenous infections weekly, after the first week
-            if(self.time % 7 == 0 and self.time > 0):
-                self.add_exogenous_cases(self.exogenous_rate)
-        
-            # Daily counts
-            infected, recovered, susceptible = 0, 0, 0
-            for node in self.nodes:
-                if(node.state == 0):
-                    susceptible += 1
-                elif(node.state == 4):
-                    recovered += 1
-                else:
-                    infected += 1
+        # Add exogenous infections weekly, after the first week
+        if(self.time % 7 == 0 and self.time > 0):
+            self.add_exogenous_cases(self.exogenous_rate)
+    
+        # Daily counts
+        infected, recovered, susceptible = 0, 0, 0
+        for node in self.nodes:
+            if(node.state == 0):
+                susceptible += 1
+            elif(node.state == 4):
+                recovered += 1
+            else:
+                infected += 1
 
-                node.update(self.rng, self.time, self.transmission_rate, self.test_rate)
+            node.update(self.rng, self.time, self.transmission_rate, self.test_rate)
 
-            # Save data (["infected", "recovered", "susceptible"])
-            for state in data:
-                data[state] = data[state].append({'day': self.time, 'cases': eval(state)}, ignore_index = True)
+        # Save data (["infected", "recovered", "susceptible"])
+        for state in self.data:
+            self.data[state] = self.data[state].append({'day': self.time, 'cases': eval(state)}, ignore_index = True)
 
         total_recovered = 0
         total_spread_to = 0
@@ -116,8 +102,7 @@ class Simulation:
                 total_recovered += 1
                 total_spread_to += node.nodes_infected
 
-        # return (rt, cost of tests)
-        return((total_spread_to / total_recovered), total_tests)
+        self.time += 1
 
     def add_exogenous_cases(self, amount):
         '''Sets a number of cases specified by `amount` to exposed.

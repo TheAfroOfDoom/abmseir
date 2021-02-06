@@ -18,15 +18,17 @@ Modelling the Spread of SARS-CoV-2 at UMass Dartmouth using Small World Networks
 # Modules
 import log_handler
 import graph_handler
-import simulation as sim
+from simulation import Simulation
 
 if __name__ == '__main__':
     # Initialize logging object
     log = log_handler.logging
 
     # Import the active graph
-    g = graph_handler.complete_graph([1000])
+    g = graph_handler.complete_graph([5000])
 
     # Run simulation on current active graph
-    simulation = sim.Simulation(g)
-    simulation.simulationContainer()
+    simulation = Simulation(g)
+    simulation.run_step()
+    print(simulation.data.get("infected"))
+    print("here")
