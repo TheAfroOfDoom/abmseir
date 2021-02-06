@@ -31,11 +31,13 @@ class Simulation:
         self.test_cost = config.settings['simulation']['properties']['testing']['cost']
         self.data = self.generate_data_container()
         self.sample_size = 10
-        self.exogenous_rate = 10
+        self.exogenous_rate = 0
         self.initial_infected_count = 10
-        self.transmission_rate = (1.5 * (1/14)) / 4999
-        self.exp_rt = 0
-        self.time_to_recovery = 14
+
+        beta = 1.5 * (1/14)# + 3/98)
+        self.transmission_rate = beta / 4999
+
+        self.time_to_recovery = {'mean': 14, 'min': 10}
 
         self.all_states = [
             'susceptible',
@@ -97,6 +99,17 @@ class Simulation:
 
         # Increment global time
         self.time += 1
+
+    def calculate_r_0(self):            
+        total_recovered, total_spread_to = 0, 0
+        # R_0 calculating
+        for node in self.nodes:
+            if(node.index_case):
+                total_recovered += 1
+                total_spread_to += node.nodes_infected
+
+        # Return R_0
+        return(total_spread_to / total_recovered)
 
     def add_exogenous_cases(self, amount):
         '''Sets a number of cases specified by `amount` to exposed.
@@ -287,7 +300,7 @@ class Node:
         self.state = 'infected'
 
         # Pull from geometric distribution with mean = `time_to_recovery`
-        self.state_time = geometric_by_mean(self.rng, time_to_recovery)
+        self.state_time = geometric_by_mean(self.rng, time_to_recovery['mean'], time_to_recovery['min'])
 
     def update(self, rng, global_time, transmission_rate):
         '''Runs once per cycle per node, updating a node based on it's state.
@@ -297,10 +310,11 @@ class Node:
         4. Recovered: do nothing
         '''
         # Update the amount of time we have left to spend in the current state
-        self.state_time -= 1
+        if(self.state_time > 0):
+            self.state_time -= 1
 
         self.time_to_infection       = 3 # -change-
-        self.time_to_recovery        = 14 # -change-
+        self.time_to_recovery        = {'mean': 14, 'min': 10} # -change-
         self.symptoms_probability    = 0.3 # -change-
 
         # Update test properties
@@ -348,12 +362,12 @@ class Node:
         for neighbor in self.neighbors:
 
             # Spread to this specific neighbor...
-            if( neighbor.state == 'infected'           #       if the neighbor is susceptible
+            if( neighbor.state == 'susceptible'           #       if the neighbor is susceptible
             and neighbor.quarantine_time == 0          # and   if the neighbor is not quarantined
             and self.rng.random() <= transmission_rate):    # and   if the random chance succeeds
                 neighbor.get_exposed()
 
-                # Count R0 cases (cases caused by index cases)
+                # Count R_0 cases (cases caused by index cases)
                 if(self.index_case == True):
                     self.nodes_infected += 1
 
@@ -362,13 +376,13 @@ class Node:
         for a mean time of `14` (geometric distribution).
         '''
         # Pull from geometric distribution, mean recovery time = 14
-        self.quarantine_time = geometric_by_mean(self.rng, time_to_recovery)
+        self.quarantine_time = time_to_recovery['mean'] #geometric_by_mean(self.rng, time_to_recovery)
 
-def geometric_by_mean(rng, mean):
+def geometric_by_mean(rng, mean, min = 0):
     # https://en.wikipedia.org/wiki/Geometric_distribution (mean = 1 / p)
-    p = 1 / (mean)
+    p = 1 / (mean - min)
 
-    return(rng.geometric(p))
+    return(rng.geometric(p) + min)
 
 def bisect(lo, hi):
     '''Returns the average of two numeric parameters.

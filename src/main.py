@@ -29,6 +29,7 @@ if __name__ == '__main__':
 
     # Run simulation on current active graph
     simulation = Simulation(g)
-    #for _ in range(100):
-        #simulation.run_step()
+    for _ in range(100):
+        simulation.run_step()
     log.info(simulation.data)
+    log.info("R_0: %.2f" % (simulation.calculate_r_0()))
