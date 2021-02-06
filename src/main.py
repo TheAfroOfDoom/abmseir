@@ -31,4 +31,3 @@ if __name__ == '__main__':
     simulation = Simulation(g)
     simulation.run_step()
     print(simulation.data.get("infected"))
-    print("here")

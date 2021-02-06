@@ -34,7 +34,7 @@ class Simulation:
         self.sample_size = 10
         self.exogenous_rate = 10
         self.initial_infected_count = 10
-        self.transmission_rate = 0.3
+        self.transmission_rate = (1.5 * (1/14 + 3/98))/4999
         self.exp_rt = 0
         self.time_to_recovery = 14
         self.pre_step()
@@ -68,6 +68,7 @@ class Simulation:
             node = self.nodes[chosen_node]
             node.get_infected(self.time_to_recovery)
             node.index_case = True
+        self.run_step()
 
     def run_step(self):
 
@@ -90,17 +91,6 @@ class Simulation:
         # Save data (["infected", "recovered", "susceptible"])
         for state in self.data:
             self.data[state] = self.data[state].append({'day': self.time, 'cases': eval(state)}, ignore_index = True)
-
-        total_recovered = 0
-        total_spread_to = 0
-        total_tests = 0
-
-        # rt calculating
-        for node in self.nodes:
-            total_tests += node.test.count
-            if(node.index_case):
-                total_recovered += 1
-                total_spread_to += node.nodes_infected
 
         self.time += 1
 
@@ -286,7 +276,7 @@ class Node:
         self.state = 'exposed'
 
         # Pull from geometric distribution with mean = `time_to_infection`
-        self.state_time = geometric_by_mean(self.rng, 7) # -change-
+        self.state_time = geometric_by_mean(self.rng, 3) # -change-
 
     def get_infected(self, time_to_recovery):
         self.state = 'infected'
