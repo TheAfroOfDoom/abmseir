@@ -23,7 +23,7 @@ import pandas as pd
 class Simulation:
     def __init__(self, g):
         self.rng = np.random.default_rng() # TODO(jordan): Log this seed
-        self.g = g
+        self.graph = g
         self.nodes = self.generate_nodes()
         self.time_horizon = config.settings['simulation']['properties']['time_horizon']
         self.time = 0
@@ -50,12 +50,12 @@ class Simulation:
     
     def generate_nodes(self):
         nodes = []
-        for node_index in self.g.nodes():
+        for node_index in self.graph.nodes():
             nodes.append(Node(self.rng, node_index))
 
         # TODO(aidan) May result in added time complexity, could be optimized
         for node in nodes:
-            node.set_neighbors(self.g.neighbors(node.index), nodes)
+            node.set_neighbors(self.graph.neighbors(node.index), nodes)
 
         return nodes
 
