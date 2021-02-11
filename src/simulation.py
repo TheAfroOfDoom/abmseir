@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/06/2021
+# Last Modified: 02/11/2021
 # Modified By: Jordan Williams
 ###
 
@@ -33,6 +33,7 @@ class Simulation:
         self.sample_size = 10
         self.exogenous_rate = 0
         self.initial_infected_count = 10
+        # TODO(jordan): Add death rate
 
         beta = 1.5 * (1/14)# + 3/98)
         self.transmission_rate = beta / 4999
@@ -237,7 +238,8 @@ class Test:
 
         # Use positive rates for infected individuals
         if(self.node.state == 'infected asymptomatic'
-        or self.node.state == 'infected symptomatic'):
+        or self.node.state == 'infected symptomatic'
+        or self.node.state == 'infected'):
             if(self.rng.random() <= self.sensitivity):
                 self.results = True
             else:
@@ -301,6 +303,7 @@ class Node:
 
         # Pull from geometric distribution with mean = `time_to_recovery`
         self.state_time = geometric_by_mean(self.rng, time_to_recovery['mean'], time_to_recovery['min'])
+        #log.info("Node %d TTR: %d" % (self.index, self.state_time))
 
     def update(self, rng, global_time, transmission_rate):
         '''Runs once per cycle per node, updating a node based on it's state.
@@ -315,7 +318,7 @@ class Node:
 
         self.time_to_infection       = 3 # -change-
         self.time_to_recovery        = {'mean': 14, 'min': 10} # -change-
-        self.symptoms_probability    = 0.3 # -change-
+        self.symptoms_probability    = (1 / self.time_to_recovery['mean']) * (0.3 / (1 - 0.3)) # -change-
 
         # Update test properties
         self.test.update(global_time, self.time_to_recovery)
