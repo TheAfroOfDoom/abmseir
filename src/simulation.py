@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/11/2021
+# Last Modified: 02/14/2021
 # Modified By: Jordan Williams
 ###
 
@@ -29,24 +29,26 @@ class Simulation:
         self.time = 0
         self.base_infection_rate = config.settings['simulation']['properties']['scenarios']
         self.test_cost = config.settings['simulation']['properties']['testing']['cost']
-        self.data = self.generate_data_container()
         self.sample_size = 10
         self.exogenous_rate = 0
-        self.initial_infected_count = 10
-        # TODO(jordan): Add death rate
+        self.initial_infected_count = 20
 
-        beta = 1.5 * (1/14)# + 3/98)
-        self.transmission_rate = beta / 4999
+        beta = 1.5 * (1/14 + 3/98)
+        self.transmission_rate = beta / 42#4999
 
         self.time_to_recovery = {'mean': 14, 'min': 10}
 
         self.all_states = [
             'susceptible',
             'exposed',
-            'infected',
-            'recovered'
+            'infected asymptomatic',
+            'infected symptomatic',
+            'recovered',
+            'dead'
             ]
             
+        self.data = self.generate_data_container()
+
         self.pre_step()
     
     def generate_nodes(self):
@@ -61,12 +63,7 @@ class Simulation:
         return nodes
 
     def generate_data_container(self):
-        data = pd.DataFrame(dtype = int, columns = [
-            "susceptible",
-            "exposed",
-            "infected", # TODO(jordan): Distinguish between asymp./symp. infected?
-            "recovered"
-        ])
+        data = pd.DataFrame(dtype = int, columns = self.all_states)
         return data
 
     def pre_step(self):
@@ -192,7 +189,7 @@ class Test:
         self.sensitivity = 0.7
         self.specificity = 0.98
         self.test_delay = 1
-        self.rate = None
+        self.rate = 0
 
     def update(self, global_time, time_to_recovery):
         '''Runs once per cycle per node, updating its test information as follows:
@@ -206,17 +203,12 @@ class Test:
             self.delay -= 1
 
         # Determine if we should get tested
-        bool_should_get_tested  =   (                                   # Only test if:
-                                    isinstance(self.rate, int)          #       `self.rate` is numerical
-                                    and self.rate != 0                  # and   if `self.rate` is not 0
-                                    and global_time % self.rate == 0    # and   if the current `global_time` is
-                                    )                                   #       divisible by our `self.rate`
-
-        bool_should_get_tested |=   (self.rate == 'symptom-based'       # or    if we are testing based on symptoms,
-                                    and self.node.symptoms)             #       and our node is symptomatic
-
+                                                                        # Only test if:
+        bool_should_get_tested  =   (self.rate != 0                     #       `self.rate` is not 0
+                                and global_time % self.rate == 0)       # and   if the current `global_time` is
+                                                                        #       divisible by our `self.rate`
         bool_should_get_tested &=   global_time > 0                     # and   if this isn't the first day of the simulation
-        bool_should_get_tested &=   self.node.quarantine_time == 0      # and   if we aren't in quarantine
+        bool_should_get_tested &=   self.node.quarantine_time == 0      # and   if we aren't already in quarantine
 
         # Get tested if the above conditions pass
         if(bool_should_get_tested):
@@ -238,8 +230,8 @@ class Test:
 
         # Use positive rates for infected individuals
         if(self.node.state == 'infected asymptomatic'
-        or self.node.state == 'infected symptomatic'
-        or self.node.state == 'infected'):
+        #or self.node.state == 'infected'
+        ):
             if(self.rng.random() <= self.sensitivity):
                 self.results = True
             else:
@@ -276,7 +268,6 @@ class Node:
 
         self.nodes_infected = 0
         self.quarantine_time = 0
-        self.symptoms = False
 
         self.state = 'susceptible'
         self.state_time = 0
@@ -284,6 +275,15 @@ class Node:
         self.test = Test(rng, self)
 
         self.neighbors = []
+
+        self.time_to_infection       = 3 # -change-
+        self.time_to_recovery        = {'mean': 14, 'min': 10} # -change-
+
+        symptoms_probability = 0.3
+        self.symptoms_rate    = (symptoms_probability / (1 - symptoms_probability)) / self.time_to_recovery['mean'] # -change-
+
+        death_probability = 0.0005
+        self.death_rate    = (death_probability / (1 - death_probability)) / self.time_to_recovery['mean'] # -change-
 
     def __str__(self):
         return(self.state)
@@ -299,7 +299,7 @@ class Node:
         self.state_time = geometric_by_mean(self.rng, 3) # -change-
 
     def get_infected(self, time_to_recovery):
-        self.state = 'infected'
+        self.state = 'infected asymptomatic'
 
         # Pull from geometric distribution with mean = `time_to_recovery`
         self.state_time = geometric_by_mean(self.rng, time_to_recovery['mean'], time_to_recovery['min'])
@@ -316,10 +316,6 @@ class Node:
         if(self.state_time > 0):
             self.state_time -= 1
 
-        self.time_to_infection       = 3 # -change-
-        self.time_to_recovery        = {'mean': 14, 'min': 10} # -change-
-        self.symptoms_probability    = (1 / self.time_to_recovery['mean']) * (0.3 / (1 - 0.3)) # -change-
-
         # Update test properties
         self.test.update(global_time, self.time_to_recovery)
 
@@ -333,8 +329,8 @@ class Node:
             if(self.state_time == 0):
                 self.get_infected(self.time_to_recovery)
 
-        # infected
-        if(self.state == 'infected'):
+        # infected asymptomatic
+        if(self.state == 'infected asymptomatic'):
             # Progress from infected to recovered state after mean recovery time (14 days)
             if(self.state_time == 0):
                 self.state = 'recovered'
@@ -342,15 +338,22 @@ class Node:
             # If we are still infected...
             else:
                 # Gain symptoms with some probability (0.30)
-                if( not self.symptoms
-                and rng.random() <= self.symptoms_probability):
-                        self.symptoms = True
+                if(rng.random() <= self.symptoms_rate):
+                    self.state = 'infected symptomatic'
 
                 # Spread if not quarantined
-                if(self.quarantine_time == 0):
+                elif(self.quarantine_time == 0):
                     self.spread(transmission_rate)
 
-                # TODO(jordan): If symptomatic, die with some probability (0.0005)
+        # infected symptomatic
+        if(self.state == 'infected symptomatic'):
+            # Progress from infected to recovered state after mean recovery time (14 days)
+            if(self.state_time == 0):
+                self.state = 'recovered'
+
+            # If we are still infected...
+            elif(rng.random() <= self.death_rate):
+                self.state = 'dead'
 
         # recovered
         elif(self.state == 'recovered'):
