@@ -1,7 +1,7 @@
 {
     "graph": {
         "active": {
-            "type": "Watts-Strogatz",
+            "type": "watts-strogatz",
             "properties": [1500, 42, 3],
             "count": 1
 
@@ -14,6 +14,19 @@
                     {
                         "name": "nodes",
                         "key": "n"
+                    }
+                ]
+            },
+            "regular": {
+                "random": "false",
+                "properties": [
+                    {
+                        "name": "nodes",
+                        "key": "n"
+                    },
+                    {
+                        "name": "node_degree",
+                        "key": "k"
                     }
                 ]
             },

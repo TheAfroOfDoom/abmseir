@@ -3,7 +3,7 @@
 # Created: 12/06/2020
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/07/2021
+# Last Modified: 02/15/2021
 # Modified By: Jordan Williams
 ###
 
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     # Run simulation many times to average values
     r_0s, recovereds = [], []
-    for _ in range(10):
+    for _ in range(100):
     
         # Run simulation on current active graph
         simulation = Simulation(g)
