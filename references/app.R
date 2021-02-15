@@ -362,8 +362,17 @@ server <- function(input, output) {
 
     # beta = transmission rate = 1.05 * (1/14 + 3/98) = 0.10714285..
     beta <- input$R0*(rho+sigma)
+
+    # delta = rate of death for those w/symptoms
+    # delta = (0.0005 / 0.9995) * (1/14)
     delta <- (input$symptom_case_fatality_ratio/(1-input$symptom_case_fatality_ratio))*rho
+
+    # theta = incubation rate
+    # theta = 1/3 = 0.3333...
     theta <- 1/(input$days_to_incubation*cycles.per.day)
+
+    # mu = Time to return FPs from Isolation
+    # mu = 1/1 = 1
     mu <- 1/(cycles.per.day*input$time_to_return_fps)
     
     n.cycle <- 240
@@ -395,28 +404,36 @@ server <- function(input, output) {
             # Cycle
             i,
 
-            # Susceptible
+            # S: Susceptible
+            # S = (1-β(Ia/(S+Ia+E)))S + μF - S_{i-1}(1-rn) - X
             max(0,mat[i,2]*(1-beta*(mat[i,5]/(mat[i,2]+mat[i,5]+mat[i,4])))+mat[i,3]*mu-mat[i-1,2]*(1-input$test_specificity)/cycles.per.test-superspreader.event[i+1]*input$new_infections_per_shock),
 
-            # False-Positives
+            # F: False-Positives
+            # F = (1-μ)F + S_{i-1}(1-rn)
             max(0,mat[i,3]*(1-mu)+mat[i-1,2]*(1-input$test_specificity)/cycles.per.test),
 
-            # Exposed
+            # E: Exposed
+            # E = (1-θ)E + β(S*Ia/(S+Ia+E)) + X
             max(0,mat[i,4]*(1-theta)+beta*(mat[i,2]*mat[i,5]/(mat[i,2]+mat[i,5]+mat[i,4]))+superspreader.event[i+1]*input$new_infections_per_shock),
 
-            # Asympt.
+            # Ia: Asympt.
+            # Ia = (1-σ-ρ)Ia + θE - (rp)Ia_{i-1}
             max(0,mat[i,5]*(1-sigma-rho)+mat[i,4]*theta-mat[i-1,5]*input$test_sensitivity/cycles.per.test),
 
-            # Symptoms
+            # Is: Symptoms
+            # Is = (1-δ-ρ)Is + σ(Ia+R)
             max(0,mat[i,6]*(1-delta-rho)+(mat[i,5]+mat[i,7])*sigma),
 
-            # Recovered
+            # Q: Quarantined/Isolated
+            # Q = (1-σ-ρ)Q + (rp)Ia_{i-1}
             max(0,mat[i,7]*(1-sigma-rho)+mat[i-1,5]*input$test_sensitivity/cycles.per.test),
 
-            # Dead
+            # R: Recovered
+            # R = R + ρ(Ia+Is+Q)
             max(0,mat[i,8]+(mat[i,5]+mat[i,6]+mat[i,7])*rho),
 
-            # Superspreader Event
+            # D: Dead
+            # D = D + δIs
             max(0,delta*mat[i,6]+mat[i,9]))
         )
     }

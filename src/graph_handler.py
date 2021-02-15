@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/06/2021
+# Last Modified: 02/14/2021
 # Modified By: Jordan Williams
 ###
 
@@ -40,6 +40,22 @@ def complete_graph(args):
             g.add_edge(j, i)
     return(g)
 
+def regular_graph(args):
+    '''A graph where each vertex has the same number of neighbors;
+    i.e. every vertex has the same degree or valency.
+    https://en.wikipedia.org/wiki/Regular_graph
+    '''
+    # Unpack args
+    n = args[0]
+    k = args[1]
+
+    regular_lattice = nx.Graph()
+    for x in range(n):
+        for y in range(k // 2): # FIXME(jordan): This will only give even-valued degrees
+            regular_lattice.add_edge(x, (x + y + 1) % n)
+
+    return(regular_lattice)
+
 def wattsstrogatz_graph(args):
     '''Decent small-world model with low diameter and high clustering.
     https://en.wikipedia.org/wiki/Watts%E2%80%93Strogatz_model
@@ -56,13 +72,12 @@ def wattsstrogatz_graph(args):
     g = nx.Graph()
     # Keep track of what edges we will randomly choose from.
     # Start with a complete list of all possible edges.
+    log.info("Watts-Strogatz generation requires a complete graph.")
     remaining_edges = import_graph('complete', [n])
 
     # Generate a regular lattice with n nodes, k neighbors
-    regular_lattice = nx.Graph()
-    for x in range(n):
-        for y in range(k // 2): # FIXME(jordan): This will only give even-valued degrees
-            regular_lattice.add_edge(x, (x + y + 1) % n)
+    log.info("Watts-Strogatz generation requires a regular graph.")
+    regular_lattice = import_graph('regular', [n, k])
 
     # Remove the regular lattice edges from our complete set of remaining edges to choose from
     remaining_edges.remove_edges_from(regular_lattice.edges())
