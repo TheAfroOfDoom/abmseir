@@ -161,129 +161,29 @@ class Simulation:
 
         return(infection_rate)
 
-class Test:
-    '''Handles everything related to a node's testing:
-    1. How many tests it has taken
-    2. The results of its last test
-    3. If it is waiting on test results
-        - If so, how long it has been waiting
-    '''
-    def __init__(self, rng, node):
-        # Numpy random number generator object
-        self.rng = rng
-
-        # Associated node
-        self.node = node
-
-        # Number of tests this node has taken
-        self.count = 0
-
-        # True means the test indicated infection in the individual
-        self.results = True
-
-        # Time this node needs to wait until it gets its test results
-        self.delay = 0
-        self.processing_results = False
-
-        # Test settings
-        self.sensitivity = 0.7
-        self.specificity = 0.98
-        self.test_delay = 1
-        self.rate = 0
-
-    def update(self, global_time, time_to_recovery):
-        '''Runs once per cycle per node, updating its test information as follows:
-        1. Waits for the test result's delay
-            - Updates its node based on the results
-        2. 
-        '''
-
-        # If we are waiting on the latest test results, decrement the delay we are waiting
-        if(self.processing_results):
-            self.delay -= 1
-
-        # Determine if we should get tested
-                                                                        # Only test if:
-        bool_should_get_tested  =   (self.rate != 0                     #       `self.rate` is not 0
-                                and global_time % self.rate == 0)       # and   if the current `global_time` is
-                                                                        #       divisible by our `self.rate`
-        bool_should_get_tested &=   global_time > 0                     # and   if this isn't the first day of the simulation
-        bool_should_get_tested &=   self.node.quarantine_time == 0      # and   if we aren't already in quarantine
-
-        # Get tested if the above conditions pass
-        if(bool_should_get_tested):
-            self.take()
-
-        # Receive test results Y days after being tested (if not quarantined)
-        if(self.processing_results
-        and self.delay == 0):
-            self.get_test_results(time_to_recovery)
-
-    def take(self):
-        '''Simulates a node taking a COVID test.
-        Returns a boolean based on sensitivity/specificity parameters
-        and whether or not the node is actually infected or not.
-        '''
-
-        # Increment the amount of tests this node has taken
-        self.count += 1
-
-        # Use positive rates for infected individuals
-        if(self.node.state == 'infected asymptomatic'
-        #or self.node.state == 'infected'
-        ):
-            if(self.rng.random() <= self.sensitivity):
-                self.results = True
-            else:
-                self.results = False
-                pass
-
-        # Use negative rates for susceptible/exposed/recovered individuals
-        else:
-            if(self.rng.random() <= self.specificity):
-                self.results = False
-                pass
-            else:
-                self.results = True
-                
-        self.processing_results = True
-        self.delay = geometric_by_mean(self.rng, self.test_delay)
-
-    def get_test_results(self, time_to_recovery):
-        '''After the delay in receiving test results, sets the
-        `processing_results` boolean to `False`. Puts the node
-        into quarantine if the test comes back positive.
-        '''
-        self.processing_results = False
-
-        if(self.results):
-            self.node.quarantine(time_to_recovery)
-            
 class Node:
     def __init__(self, rng, i):
+
+        # Node parameters
         self.rng = rng
-
-        self.index = i
-        self.index_case = False
-
-        self.nodes_infected = 0
-        self.quarantine_time = 0
-
-        self.state = 'susceptible'
-        self.state_time = 0
-
-        self.test = Test(rng, self)
-
-        self.neighbors = []
-
         self.time_to_infection       = 3 # -change-
         self.time_to_recovery        = {'mean': 14, 'min': 10} # -change-
-
         symptoms_probability = 0.3
         self.symptoms_rate    = (symptoms_probability / (1 - symptoms_probability)) / self.time_to_recovery['mean'] # -change-
-
         death_probability = 0.0005
         self.death_rate    = (death_probability / (1 - death_probability)) / self.time_to_recovery['mean'] # -change-
+
+        # Run-time initialized
+        self.index = i
+        self.index_case = False
+        self.neighbors = []
+        self.test = Test(rng, self)
+
+        # Node variables
+        self.nodes_infected = 0
+        self.quarantine_time = 0
+        self.state = 'susceptible'
+        self.state_time = 0
 
     def __str__(self):
         return(self.state)
@@ -383,6 +283,104 @@ class Node:
         '''
         # Pull from geometric distribution, mean recovery time = 14
         self.quarantine_time = time_to_recovery['mean'] #geometric_by_mean(self.rng, time_to_recovery)
+
+class Test:
+    '''Handles everything related to a node's testing:
+    1. How many tests it has taken
+    2. The results of its last test
+    3. If it is waiting on test results
+        - If so, how long it has been waiting
+    '''
+    def __init__(self, rng, node):
+        # Numpy random number generator object
+        self.rng = rng
+
+        # Associated node
+        self.node = node
+
+        # Number of tests this node has taken
+        self.count = 0
+
+        # True means the test indicated infection in the individual
+        self.results = True
+
+        # Time this node needs to wait until it gets its test results
+        self.delay = 0
+        self.processing_results = False
+
+        # Test settings
+        self.sensitivity = 0.7
+        self.specificity = 0.98
+        self.test_delay = 1
+        self.rate = 0
+
+    def update(self, global_time, time_to_recovery):
+        '''Runs once per cycle per node, updating its test information as follows:
+        1. Waits for the test result's delay
+            - Updates its node based on the results
+        2. 
+        '''
+
+        # If we are waiting on the latest test results, decrement the delay we are waiting
+        if(self.processing_results):
+            self.delay -= 1
+
+        # Determine if we should get tested
+                                                                        # Only test if:
+        bool_should_get_tested  =   (self.rate != 0                     #       `self.rate` is not 0
+                                and global_time % self.rate == 0)       # and   if the current `global_time` is
+                                                                        #       divisible by our `self.rate`
+        bool_should_get_tested &=   global_time > 0                     # and   if this isn't the first day of the simulation
+        bool_should_get_tested &=   self.node.quarantine_time == 0      # and   if we aren't already in quarantine
+
+        # Get tested if the above conditions pass
+        if(bool_should_get_tested):
+            self.take()
+
+        # Receive test results Y days after being tested (if not quarantined)
+        if(self.processing_results
+        and self.delay == 0):
+            self.get_test_results(time_to_recovery)
+
+    def take(self):
+        '''Simulates a node taking a COVID test.
+        Returns a boolean based on sensitivity/specificity parameters
+        and whether or not the node is actually infected or not.
+        '''
+
+        # Increment the amount of tests this node has taken
+        self.count += 1
+
+        # Use positive rates for infected individuals
+        if(self.node.state == 'infected asymptomatic'
+        #or self.node.state == 'infected'
+        ):
+            if(self.rng.random() <= self.sensitivity):
+                self.results = True
+            else:
+                self.results = False
+                pass
+
+        # Use negative rates for susceptible/exposed/recovered individuals
+        else:
+            if(self.rng.random() <= self.specificity):
+                self.results = False
+                pass
+            else:
+                self.results = True
+                
+        self.processing_results = True
+        self.delay = geometric_by_mean(self.rng, self.test_delay)
+
+    def get_test_results(self, time_to_recovery):
+        '''After the delay in receiving test results, sets the
+        `processing_results` boolean to `False`. Puts the node
+        into quarantine if the test comes back positive.
+        '''
+        self.processing_results = False
+
+        if(self.results):
+            self.node.quarantine(time_to_recovery)
 
 def geometric_by_mean(rng, mean, min = 0):
     # https://en.wikipedia.org/wiki/Geometric_distribution (mean = 1 / p)
