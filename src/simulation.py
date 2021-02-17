@@ -20,24 +20,26 @@ from log_handler import logging as log
 import numpy as np
 import pandas as pd
 
-class Simulation:
+class Simulation: 
     def __init__(self, g):
+        
+        # Simulation constants
         self.rng = np.random.default_rng() # TODO(jordan): Log this seed
         self.graph = g
         self.nodes = self.generate_nodes()
-        self.time_horizon = config.settings['simulation']['properties']['time_horizon']
+
+        # Simulation variables
+        self.data = self.generate_data_container()
         self.time = 0
-        self.base_infection_rate = config.settings['simulation']['properties']['scenarios']
+
+        # Simulation parameters
         self.test_cost = config.settings['simulation']['properties']['testing']['cost']
         self.sample_size = 10
         self.exogenous_rate = 0
         self.initial_infected_count = 20
-
         beta = 1.5 * (1/14 + 3/98)
         self.transmission_rate = beta / 42#4999
-
         self.time_to_recovery = {'mean': 14, 'min': 10}
-
         self.all_states = [
             'susceptible',
             'exposed',
@@ -46,9 +48,8 @@ class Simulation:
             'recovered',
             'dead'
             ]
-            
-        self.data = self.generate_data_container()
 
+        # Initializes simulation
         self.pre_step()
     
     def generate_nodes(self):
