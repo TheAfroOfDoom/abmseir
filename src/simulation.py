@@ -13,7 +13,6 @@ Simulates the infectious spread across a community (graph) based on parameters d
 
 # Modules
 from datetime import time
-import config
 from log_handler import logging as log
 
 # Packages
@@ -33,7 +32,7 @@ class Simulation:
         self.time = 0
 
         # Simulation parameters
-        self.test_cost = config.settings['simulation']['properties']['testing']['cost']
+        self.test_cost = 25
         self.sample_size = 10
         self.exogenous_rate = 0
         self.initial_infected_count = 20
@@ -98,17 +97,6 @@ class Simulation:
 
         # Increment global time
         self.time += 1
-
-    def calculate_r_0(self):            
-        total_recovered, total_spread_to = 0, 0
-        # R_0 calculating
-        for node in self.nodes:
-            if(node.index_case):
-                total_recovered += 1
-                total_spread_to += node.nodes_infected
-
-        # Return R_0
-        return(total_spread_to / total_recovered)
 
     def add_exogenous_cases(self, amount):
         '''Sets a number of cases specified by `amount` to exposed.
