@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/14/2021
+# Last Modified: 02/16/2021
 # Modified By: Jordan Williams
 ###
 
@@ -74,8 +74,6 @@ class Simulation:
             chosen_node.get_infected(self.time_to_recovery)
             chosen_node.index_case = True
         log.debug(initial_infected_nodes)
-
-        self.run_step()
 
     def run_step(self):
         # Add exogenous infections weekly, after the first week
@@ -152,7 +150,6 @@ class Simulation:
 
 class Node:
     def __init__(self, rng, i):
-
         # Node parameters
         self.rng = rng
         self.time_to_infection       = 3 # -change-
@@ -300,7 +297,7 @@ class Test:
         # Test settings
         self.sensitivity = 0.7
         self.specificity = 0.98
-        self.test_delay = 1
+        self.results_delay = 1
         self.rate = 0
 
     def update(self, global_time, time_to_recovery):
@@ -314,8 +311,7 @@ class Test:
         if(self.processing_results):
             self.delay -= 1
 
-        # Determine if we should get tested
-                                                                        # Only test if:
+        # Determine if we should get tested                             # Only test if:
         bool_should_get_tested  =   (self.rate != 0                     #       `self.rate` is not 0
                                 and global_time % self.rate == 0)       # and   if the current `global_time` is
                                                                         #       divisible by our `self.rate`
@@ -341,17 +337,19 @@ class Test:
         self.count += 1
 
         # Use positive rates for infected individuals
-        if(self.node.state == 'infected asymptomatic'
-        #or self.node.state == 'infected'
-        ):
+        if(self.node.state == 'infected asymptomatic'):
             if(self.rng.random() <= self.sensitivity):
                 self.results = True
             else:
                 self.results = False
                 pass
 
-        # Use negative rates for susceptible/exposed/recovered individuals
-        else:
+        # Use negative rates for susceptible individuals
+        elif(self.node.state in [
+            # TODO(jordan): Paltiel only tests S/Ia nodes. Should our UMassD model test more types of nodes?
+            'susceptible'
+            #'susceptible', 'exposed', 'recovered'
+        ]):
             if(self.rng.random() <= self.specificity):
                 self.results = False
                 pass
@@ -359,7 +357,7 @@ class Test:
                 self.results = True
                 
         self.processing_results = True
-        self.delay = geometric_by_mean(self.rng, self.test_delay)
+        self.delay = geometric_by_mean(self.rng, self.results_delay)
 
     def get_test_results(self, time_to_recovery):
         '''After the delay in receiving test results, sets the
