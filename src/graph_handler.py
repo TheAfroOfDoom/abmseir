@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/14/2021
+# Last Modified: 02/17/2021
 # Modified By: Jordan Williams
 ###
 
@@ -24,7 +24,7 @@ import re
 import time
 import timeit
 
-g = []
+from pathlib import Path
 
 def complete_graph(args):
     '''Connects each of n nodes to every other node.
@@ -147,8 +147,9 @@ def build_file_name(graph_type = None, args = None, rng = None):
     if(args is None):
         args = config.settings['graph']['active']['properties']
 
-    # Initialize name string with the graph_type
-    name = graph_type
+    # Initialize name string with the graph_type dir and graph_type
+    # e.g.: `complete/complete`
+    name = '{0}/{0}'.format(graph_type)
 
     # Iterate through each of the graph's properties and append its value
     # e.g.: "wattsstrogatz_n1500_k43_d3_rng0"
@@ -218,6 +219,9 @@ def import_graph(graph_type = None, graph_args = None, rng = None):
             log.exception(e)
             raise e
         t1 = timeit.default_timer()
+
+        # Ensure graph_type dir exists
+        Path('./%s/%s' % (config.settings['graph']['directory'], graph_type)).mkdir(exist_ok = True)
 
         # Save graph to file
         nx.write_adjlist(g, path)
