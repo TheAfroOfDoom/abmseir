@@ -34,7 +34,7 @@ class Interface:
         ax.plot(time_steps, data['infected asymptomatic'], color='red', label='asymp')
         ax.plot(time_steps, data['infected symptomatic'], color='purple', label='symp')
         ax.plot(time_steps, data['recovered'], color='blue', label='rec')
-        ax.plot(time_steps, data['dead'], color='brown', label='dsc')
+        ax.plot(time_steps, data['dead'], color='brown', label='dead')
         plt.show()
         
     def loadGraph(self, size):
