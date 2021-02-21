@@ -49,7 +49,7 @@ class Interface:
         return sim
         
     def load_graph(self):
-        return graph_handler.import_graph(file_name=self.graph_file_name)
+        return graph_handler.import_graph(path=self.graph_file_name)
 
     def add_param(self, name, text, default=None):
         # Declares a new param to be added to the interface

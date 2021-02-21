@@ -166,12 +166,12 @@ def build_file_name(graph_type = None, args = None, rng = None):
 
     return(name)
 
-def import_graph(graph_type = None, graph_args = None, rng = None, file_name = None):
+def import_graph(graph_type = None, graph_args = None, rng = None, path = None):
     '''Reads a graph file (`*.adjlist`) from the configured directory according to parameters if it exists,
     or generates and writes a new one if not.
     '''
 
-    if(file_name is None):
+    if(path is None):
         # Read graph type from config as lowercase, stripping non-alphanumeric characters
         # (if no specific graph type is specified)
         if(graph_type is None):
@@ -197,8 +197,8 @@ def import_graph(graph_type = None, graph_args = None, rng = None, file_name = N
         # Build graph file name string
         file_name = build_file_name(graph_type, graph_args, rng)
 
-    # Read from file if it exists
-    path = './' + config.settings['graph']['directory'] + file_name
+        # Read from file if it exists
+        path = './' + config.settings['graph']['directory'] + file_name
     try:
         log.info("Attempting to read graph from '%s'..." % (path))
         g = nx.read_adjlist(path, nodetype = int)
