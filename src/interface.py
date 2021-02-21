@@ -19,7 +19,7 @@ class Interface:
     def __init__(self):
         self.window = tk.Tk()
         self.params = {}
-        self.graph_file_name = None
+        self.graph_generated = None
         self.frm_graph = tk.Frame(self.window)
         self.frm_graph_load = self.gen_frm_graph_load()
         self.frm_graph_gen = self.gen_frm_graph_gen()
@@ -49,12 +49,15 @@ class Interface:
         return sim
         
     def load_graph(self):
-        return graph_handler.import_graph(path=self.graph_file_name)
+        if int(self.window.getvar('graph_mode')) == 1:
+            return graph_handler.import_graph(path=self.graph_file_name)
+        else:
+            return graph_handler.complete_graph([int(self.frm_graph_gen.getvar('pop_size'))])
 
-    def add_param(self, name, text, default=None):
+    def add_param(self, root_frame, name, text, default=None):
         # Declares a new param to be added to the interface
-        var = tk.IntVar(self.window, value=default, name=name)
-        frame = tk.Frame(self.window)
+        var = tk.IntVar(root_frame, value=default, name=name)
+        frame = tk.Frame(root_frame)
         entry = tk.Entry(frame, bd=5, textvariable=var)
         entry.pack(side=tk.RIGHT)
         label = tk.Label(frame, text=text)
@@ -69,8 +72,9 @@ class Interface:
         return frm_graph_load
 
     def gen_frm_graph_gen(self):
-        frm_graph_load = tk.Frame(self.window)
-        return frm_graph_load
+        frm_graph_gen = tk.Frame(self.window)
+        self.add_param(frm_graph_gen, 'pop_size', 'Node Count', default=500)
+        return frm_graph_gen
     
     def btn_sim_cb(self):
         self.simulate()
@@ -88,19 +92,19 @@ class Interface:
 
     def create_window(self):
         win = self.window
-        self.add_param('time_horizon', 'Days', default=100)
-        self.add_param('initial_infected_count', 'Initial Infection Count', default=10)
-        self.add_param('exogenous_rate', 'Weekly Exogenous Infections', default=10)
+        self.add_param(win, 'time_horizon', 'Days', default=100)
+        self.add_param(win, 'initial_infected_count', 'Initial Infection Count', default=10)
+        self.add_param(win, 'exogenous_rate', 'Weekly Exogenous Infections', default=10)
         btn_sim = tk.Button(win, text='Simulate', command=self.btn_sim_cb)
         btn_sim.pack(side=tk.BOTTOM)
-        graph_mode = tk.IntVar()
+        graph_mode = tk.IntVar(win, value=1, name='graph_mode')
         frm_graph_mode = tk.Frame(win)
         rbtn_graph_load = tk.Radiobutton(frm_graph_mode, text='Load Graph', command=self.rbtn_graph_load_cb, variable=graph_mode, value=1)
         rbtn_graph_gen = tk.Radiobutton(frm_graph_mode, text='Generate Graph', command=self.rbtn_graph_gen_cb, variable=graph_mode, value=2)
         rbtn_graph_load.pack(side=tk.LEFT)
         rbtn_graph_gen.pack(side=tk.RIGHT)
-        self.frm_graph_load.pack(side=tk.BOTTOM)
         frm_graph_mode.pack(side=tk.BOTTOM)
+        self.frm_graph_load.pack(side=tk.BOTTOM)
         win.mainloop()
 
     def plot_data(self, data, time_steps):
