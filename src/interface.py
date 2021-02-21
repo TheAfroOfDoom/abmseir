@@ -44,7 +44,7 @@ class Interface:
             self.params[param] = int(self.window.getvar(param))
             if param == 'initial_infected_count':
                 sim.initial_infected_count = self.params[param]
-            elif param == 'exgogenous_rate':
+            elif param == 'exogenous_rate':
                 sim.exogenous_rate = self.params[param]
         return sim
         
@@ -74,6 +74,12 @@ class Interface:
     def gen_frm_graph_gen(self):
         frm_graph_gen = tk.Frame(self.window)
         self.add_param(frm_graph_gen, 'pop_size', 'Node Count', default=500)
+        lbox_graph_gen_type = tk.Listbox(frm_graph_gen, height=3, name='lbox_graph_gen_type')
+        lbox_graph_gen_type.insert(1, 'Complete')
+        lbox_graph_gen_type.insert(2, 'Regular')
+        lbox_graph_gen_type.insert(3, 'Watts-Strogatz')
+        lbox_graph_gen_type.bind('<<ListboxSelect>>', self.lbox_graph_gen_type_cb)
+        lbox_graph_gen_type.pack()
         return frm_graph_gen
     
     def btn_sim_cb(self):
@@ -89,6 +95,19 @@ class Interface:
     def rbtn_graph_gen_cb(self):
         self.frm_graph_load.pack_forget()
         self.frm_graph_gen.pack(side=tk.BOTTOM)
+
+    def lbox_graph_gen_type_cb(self, event):
+        type = self.frm_graph_gen.children['lbox_graph_gen_type'].curselection()[0]
+        if(type == 1):
+            # Complete
+            pass
+        if(type == 2):
+            # Regular
+            pass
+        if(type == 3):
+            # Watts-strogatz
+            pass
+
 
     def create_window(self):
         win = self.window
