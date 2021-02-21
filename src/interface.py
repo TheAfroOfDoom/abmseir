@@ -7,6 +7,7 @@
 # Modified By: Aidan Tokarski
 ###
 
+from typing_extensions import IntVar
 from simulation import Simulation
 import graph_handler
 import matplotlib.pyplot as plt
@@ -19,6 +20,9 @@ class Interface:
         self.window = tk.Tk()
         self.params = {}
         self.graph_file_name = None
+        self.frm_graph = tk.Frame(self.window)
+        self.frm_graph_load = self.gen_frm_graph_load()
+        self.frm_graph_gen = self.gen_frm_graph_gen()
         '''
         Currently implemented params:
         time_horizon
@@ -57,12 +61,30 @@ class Interface:
         label.pack(side=tk.LEFT)
         frame.pack(anchor=tk.N)
         self.params[name] = default
+
+    def gen_frm_graph_load(self):
+        frm_graph_load = tk.Frame(self.window)
+        btn_graph_select = tk.Button(frm_graph_load, text='Select Graph', command=self.btn_graph_select_cb)
+        btn_graph_select.pack(side=tk.LEFT)
+        return frm_graph_load
+
+    def gen_frm_graph_gen(self):
+        frm_graph_load = tk.Frame(self.window)
+        return frm_graph_load
     
     def btn_sim_cb(self):
         self.simulate()
 
-    def btn_choose_graph(self):
+    def btn_graph_select_cb(self):
         self.graph_file_name = tkfd.askopenfilename(initialdir='./' + config.settings['graph']['directory'])
+
+    def rbtn_graph_load_cb(self):
+        self.frm_graph_gen.pack_forget()
+        self.frm_graph_load.pack(side=tk.BOTTOM)
+
+    def rbtn_graph_gen_cb(self):
+        self.frm_graph_load.pack_forget()
+        self.frm_graph_gen.pack(side=tk.BOTTOM)
 
     def create_window(self):
         win = self.window
@@ -71,8 +93,14 @@ class Interface:
         self.add_param('exogenous_rate', 'Weekly Exogenous Infections', default=10)
         btn_sim = tk.Button(win, text='Simulate', command=self.btn_sim_cb)
         btn_sim.pack(side=tk.BOTTOM)
-        btn_choose_graph = tk.Button(win, text='Load Graph', command=self.btn_choose_graph)
-        btn_choose_graph.pack(side=tk.BOTTOM)
+        graph_mode = tk.IntVar()
+        frm_graph_mode = tk.Frame(win)
+        rbtn_graph_load = tk.Radiobutton(frm_graph_mode, text='Load Graph', command=self.rbtn_graph_load_cb, variable=graph_mode, value=1)
+        rbtn_graph_gen = tk.Radiobutton(frm_graph_mode, text='Generate Graph', command=self.rbtn_graph_gen_cb, variable=graph_mode, value=2)
+        rbtn_graph_load.pack(side=tk.LEFT)
+        rbtn_graph_gen.pack(side=tk.RIGHT)
+        self.frm_graph_load.pack(side=tk.BOTTOM)
+        frm_graph_mode.pack(side=tk.BOTTOM)
         win.mainloop()
 
     def plot_data(self, data, time_steps):
