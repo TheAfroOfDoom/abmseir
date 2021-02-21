@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/17/2021
+# Last Modified: 02/19/2021
 # Modified By: Jordan Williams
 ###
 
@@ -40,7 +40,7 @@ def complete_graph(args):
             g.add_edge(j, i)
     return(g)
 
-def regular_graph(args):
+def ring_graph(args):
     '''A graph where each vertex has the same number of neighbors;
     i.e. every vertex has the same degree or valency.
     https://en.wikipedia.org/wiki/Regular_graph
@@ -49,12 +49,12 @@ def regular_graph(args):
     n = args[0]
     k = args[1]
 
-    regular_lattice = nx.Graph()
+    ring_graph = nx.Graph()
     for x in range(n):
         for y in range(k // 2): # FIXME(jordan): This will only give even-valued degrees
-            regular_lattice.add_edge(x, (x + y + 1) % n)
+            ring_graph.add_edge(x, (x + y + 1) % n)
 
-    return(regular_lattice)
+    return(ring_graph)
 
 def wattsstrogatz_graph(args):
     '''Decent small-world model with low diameter and high clustering.
@@ -75,36 +75,36 @@ def wattsstrogatz_graph(args):
     log.info("Watts-Strogatz generation requires a complete graph.")
     remaining_edges = import_graph('complete', [n])
 
-    # Generate a regular lattice with n nodes, k neighbors
-    log.info("Watts-Strogatz generation requires a regular graph.")
-    regular_lattice = import_graph('regular', [n, k])
+    # Generate a ring graph with n nodes, k neighbors
+    log.info("Watts-Strogatz generation requires a ring graph.")
+    ring_graph = import_graph('ring', [n, k])
 
-    # Remove the regular lattice edges from our complete set of remaining edges to choose from
-    remaining_edges.remove_edges_from(regular_lattice.edges())
+    # Remove the ring graph edges from our complete set of remaining edges to choose from
+    remaining_edges.remove_edges_from(ring_graph.edges())
     remaining_edges = np.asarray(remaining_edges.edges()).tolist()
 
-    # Clone the regular_lattice to a separate, independent graph g
-    g = nx.compose(g, regular_lattice)
-    regular_lattice = np.asarray(regular_lattice.edges()).tolist()
+    # Clone the ring_graph to a separate, independent graph g
+    g = nx.compose(g, ring_graph)
+    ring_graph = np.asarray(ring_graph.edges()).tolist()
 
     # Initializations for edge count statistics
     edges_rewired_count = 0
-    edges_total = len(regular_lattice)
+    edges_total = len(ring_graph)
 
     current_diameter = nx.diameter(g)
     edges_last_recalculation = 0
     # While the diameter is bigger than our goal...
     while current_diameter > diameter_goal:
-        # Choose one random edge from our regular lattice to replace with one random edge from our list of remaining edges
+        # Choose one random edge from our ring graph to replace with one random edge from our list of remaining edges
         choice = random.choice(remaining_edges)
-        edge_removed = random.choice(regular_lattice)
+        edge_removed = random.choice(ring_graph)
 
         # Replace the edge in our graph g
         g.remove_edge(edge_removed[0], edge_removed[1])
         g.add_edge(choice[0], choice[1])
 
         # Remove the randomly chosen edges from our lists so we don't pick them again
-        regular_lattice.remove(edge_removed)
+        ring_graph.remove(edge_removed)
         remaining_edges.remove(choice)
 
         # Increment edges-rewired count
@@ -213,7 +213,7 @@ def import_graph(graph_type = None, graph_args = None, rng = None):
         # Generate graph structure
         t0 = timeit.default_timer()
         try:
-            g = eval('%s_graph(%s)' % (graph_type, graph_args))
+            g = eval('%s_graph(%s)' % (graph_type, graph_args)) # TODO(jordan): Add aliases for graph types (e.g., ring = regular lattice, complete = full)
         except Exception as e:
             log.exception('Graph generation failed.')
             log.exception(e)
