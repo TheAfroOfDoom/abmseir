@@ -14,6 +14,10 @@ proposal_feedback.txt
 report/*.pdf
 report/*.synctex.gz
 
+# Specific graph types to save on space
+graphs/complete
+graphs/ring
+
 # Specific data
 Fall 2020*
 
