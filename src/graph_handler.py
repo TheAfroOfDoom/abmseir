@@ -167,37 +167,39 @@ def build_file_name(graph_type = None, args = None, rng = None):
 
     return(name)
 
-def import_graph(graph_type = None, graph_args = None, rng = None):
+def import_graph(graph_type = None, graph_args = None, rng = None, path = None):
     '''Reads a graph file (`*.adjlist`) from the configured directory according to parameters if it exists,
     or generates and writes a new one if not.
     '''
-    # Read graph type from config as lowercase, stripping non-alphanumeric characters
-    # (if no specific graph type is specified)
-    if(graph_type is None):
-        graph_type = re.sub(r'[\W_]+', '', config.settings['graph']['active']['type']).lower()
 
-    # Ensure graph_type is valid (exists in graph definitions in config)
-    try:
-        graph_definition = config.settings['graph']['definitions'][graph_type]
-    except Exception as e:
-        log.error('Invalid graph type provided in config: not defined.')
-        log.exception(e)
-        raise e
+    if(path is None):
+        # Read graph type from config as lowercase, stripping non-alphanumeric characters
+        # (if no specific graph type is specified)
+        if(graph_type is None):
+            graph_type = re.sub(r'[\W_]+', '', config.settings['graph']['active']['type']).lower()
 
-    # If graph has an element of randomness and rng is not specified, generate a new seed
-    if(graph_definition['random'].lower() == 'true'
-        and rng is None):
-        rng = int(1000 * time.time()) % 2**32
+        # Ensure graph_type is valid (exists in graph definitions in config)
+        try:
+            graph_definition = config.settings['graph']['definitions'][graph_type]
+        except Exception as e:
+            log.error('Invalid graph type provided in config: not defined.')
+            log.exception(e)
+            raise e
 
-    # Build graph args from config (if none are specified)
-    if(graph_args is None):
-        graph_args = config.settings['graph']['active']['properties']
-        
-    # Build graph file name string
-    file_name = build_file_name(graph_type, graph_args, rng)
+        # If graph has an element of randomness and rng is not specified, generate a new seed
+        if(graph_definition['random'].lower() == 'true'
+            and rng is None):
+            rng = int(1000 * time.time()) % 2**32
 
-    # Read from file if it exists
-    path = './' + config.settings['graph']['directory'] + file_name
+        # Build graph args from config (if none are specified)
+        if(graph_args is None):
+            graph_args = config.settings['graph']['active']['properties']
+            
+        # Build graph file name string
+        file_name = build_file_name(graph_type, graph_args, rng)
+
+        # Read from file if it exists
+        path = './' + config.settings['graph']['directory'] + file_name
     try:
         log.info("Attempting to read graph from '%s'..." % (path))
         g = nx.read_adjlist(path, nodetype = int)

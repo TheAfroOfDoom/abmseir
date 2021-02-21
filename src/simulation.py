@@ -12,7 +12,6 @@ Simulates the infectious spread across a community (graph) based on parameters d
 """
 
 # Modules
-from datetime import time
 from log_handler import logging as log
 
 # Packages
@@ -47,9 +46,6 @@ class Simulation:
         # Simulation variables
         self.data = self.generate_data_container()
         self.time = 0
-
-        # Initializes simulation
-        self.pre_step()
     
     def generate_nodes(self):
         nodes = []
@@ -75,9 +71,12 @@ class Simulation:
             chosen_node.index_case = True
         log.debug(initial_infected_nodes)
 
-        self.run_step()
-
     def run_step(self):
+
+        if self.time == 0:
+            # Initializes simulation
+            self.pre_step()
+
         # Add exogenous infections weekly, after the first week
         if(self.time % 7 == 0 and self.time > 0):
             self.add_exogenous_cases(self.exogenous_rate)
