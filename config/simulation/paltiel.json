@@ -1,0 +1,54 @@
+
+{
+    "population_size": 5000,
+    "initial_infected_count": 10,
+    "time_horizon": 80,
+
+    "disease": {
+        "incubation_time": {
+            "mean": 3,
+            "min": 0
+        },
+
+        "time_to_recovery": {
+            "mean": 14,
+            "min": 0
+        },
+        
+        "probability_of_symptoms": 0.30,
+        "probability_of_death_given_symptoms": 0.0005
+    },
+    
+    "scenarios": {
+        "Best": {
+            "exogenous_rate": 5,
+            "rt": 1.5,
+            "test": {
+                "specificity": 0.997
+            }
+        },
+        "Base": {
+            "exogenous_rate": 10,
+            "rt": 2.5,
+            "test": {
+                "specificity": 0.98
+            }
+        },
+        "Worst": {
+            "exogenous_rate": 25,
+            "rt": 3.5,
+            "test": {
+                "specificity": 0.98
+            }
+        }
+    },
+
+    "test": {
+        "sensitivity": 0.9,
+        "cost": 25,
+        "delay": 1,
+        "frequency": [
+            1, 2, 3, 7, 0
+        ]
+    }
+}

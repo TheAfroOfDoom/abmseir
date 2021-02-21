@@ -1,0 +1,21 @@
+recovery distribution: floor + distribution
+
+10 days + geo (mean of 4)
+
+Contact colby about what they are using
+
+Get model up and running soon
+
+Get reasonable values for parameters to integrate into model
+
+Can we model each case with changes in behavior
+
+Can't account for random error
+
+Fit with multiple possible case scenarios
+
+Potentially factor in external data to affect model
+
+How might our data differ from other areas and sources
+
+Get working model first and then worry about node based later
