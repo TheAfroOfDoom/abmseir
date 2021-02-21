@@ -3,10 +3,11 @@
 # Created: 02/19/2021
 # Author: Aidan Tokarski (astoka21@colby.edu)
 # -----
-# Last Modified: 02/19/2021
-# Modified By: Aidan Tokarski
+# Last Modified: 02/21/2021
+# Modified By: Jordan Williams
 ###
 
+from log_handler import logging as log
 from typing_extensions import IntVar
 from simulation import Simulation
 import graph_handler
@@ -40,19 +41,18 @@ class Interface:
 
     def generate_sim(self):
         sim = Simulation(self.load_graph())
-        for param in self.params:
-            self.params[param] = int(self.window.getvar(param))
-            if param == 'initial_infected_count':
-                sim.initial_infected_count = self.params[param]
-            elif param == 'exgogenous_rate':
-                sim.exogenous_rate = self.params[param]
+        log.info(self.params)
+        sim.update_parameters(self.params)
         return sim
         
     def load_graph(self):
         if int(self.window.getvar('graph_mode')) == 1:
             return graph_handler.import_graph(path=self.graph_file_name)
         else:
-            return graph_handler.complete_graph([int(self.frm_graph_gen.getvar('pop_size'))])
+            return graph_handler.import_graph(
+                        graph_type = 'complete',
+                        graph_args = [int(self.frm_graph_gen.getvar('population_size'))]
+                    )
 
     def add_param(self, root_frame, name, text, default=None):
         # Declares a new param to be added to the interface
@@ -73,7 +73,7 @@ class Interface:
 
     def gen_frm_graph_gen(self):
         frm_graph_gen = tk.Frame(self.window)
-        self.add_param(frm_graph_gen, 'pop_size', 'Node Count', default=500)
+        self.add_param(frm_graph_gen, 'population_size', 'Population', default=500)
         return frm_graph_gen
     
     def btn_sim_cb(self):

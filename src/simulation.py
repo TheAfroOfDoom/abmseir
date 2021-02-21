@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/14/2021
+# Last Modified: 02/21/2021
 # Modified By: Jordan Williams
 ###
 
@@ -20,15 +20,6 @@ import pandas as pd
 
 class Simulation: 
     def __init__(self, g):
-
-        # Simulation parameters
-        self.test_cost = 25
-        self.sample_size = 10
-        self.exogenous_rate = 0
-        self.initial_infected_count = 20
-        beta = 1.5 * (1/14 + 3/98)
-        self.transmission_rate = beta / 42#4999
-        self.time_to_recovery = {'mean': 14, 'min': 10}
         self.all_states = [
             'susceptible',
             'exposed',
@@ -43,10 +34,55 @@ class Simulation:
         self.graph = g
         self.nodes = self.generate_nodes()
 
-        # Simulation variables
+        # Simulation parameters
+        self.update_parameters()
+
+        # Simulation data
         self.data = self.generate_data_container()
         self.time = 0
     
+    def get_mean_node_degree(self):
+        # TODO(jordan): This seems really janky...
+        # https://networkx.org/documentation/stable/reference/classes/generated/networkx.Graph.degree.html
+        mean_degree = np.mean([degree[1] for degree in self.graph.degree])
+        return(mean_degree)
+
+    def update_parameters(self, args = None):
+        '''Update parameters via a dict argument `args`.
+        Forces re-calculation of dependent parameters.
+        '''
+        # Hard-coded COVID-19 values
+        if(args is None):
+            log.debug("Default args passed.")
+            # Population
+            self.population_size = 1500
+            self.initial_infected_count = 10
+
+            self.time_horizon = 100
+            self.exogenous_rate = 10
+
+            # Disease
+            self.rt = 1.5
+
+        else:
+            log.debug("Non-default args passed.")
+            for k, v, in args.items():
+                if hasattr(self, k):
+                    # Update attribute if it already exists in Simulation class
+                    self.__dict__.update({k: v})
+            
+            # Recalculate dependents
+            keys = args.keys()
+
+            # NOTE(jordan): No dependents specific to Simulation level
+
+        # Calculate mean_node_degree once ahead of time so each node doesn't have to do it
+        mean_node_degree = self.get_mean_node_degree()
+
+        # Pass params to nodes
+        for node in self.nodes:
+            node.update_parameters(args, self.rt, mean_node_degree)
+
     def generate_nodes(self):
         nodes = []
         for node_index in self.graph.nodes():
@@ -67,7 +103,7 @@ class Simulation:
         initial_infected_nodes = self.rng.choice(len(self.nodes), self.initial_infected_count, replace = False)
         for chosen_node_index in initial_infected_nodes:
             chosen_node = self.nodes[chosen_node_index]
-            chosen_node.get_infected(self.time_to_recovery)
+            chosen_node.get_infected()
             chosen_node.index_case = True
         log.debug(initial_infected_nodes)
 
@@ -88,8 +124,7 @@ class Simulation:
 
         for node in self.nodes:
             data_per_state[node.state] += 1
-
-            node.update(self.rng, self.time, self.transmission_rate)
+            node.update(self.rng, self.time)
 
         # Save data
         self.data = self.data.append(data_per_state, ignore_index = True)
@@ -118,48 +153,10 @@ class Simulation:
         for i in chosen_indices:
             self.nodes[i].get_exposed()
 
-    def calculate_infection_rate(self, node_degree, desired_rt, error):
-        '''Calculates the infection rate for a desired `Rt` value
-        through what is essentially trial and error w/binary search:
-        1. Run the simulation until all Gen.1 infections recover
-        2. Compare measured R_t to desired R_t
-        3. Use binary search to update bounds
-        4. Repeat
-        '''
-        # Initial bounds
-        lower_bound = 0
-        upper_bound = node_degree
-
-        while(True):
-            # Update guess
-            infection_rate = self.bisect(lower_bound, upper_bound)
-
-            # Run simulation TODO(jordan): <until all Gen.1 infections recover and save measured Rt>
-            # TODO(jordan): Get the average `measured_rt` of multiple simulations.
-            measured_rt = self.run_simulation()
-
-            # Update bounds
-            if(measured_rt > desired_rt + error):
-                upper_bound = infection_rate
-            elif(measured_rt < desired_rt - error):
-                lower_bound = infection_rate
-            # Break when we measure an rt within the error of our desired_rt
-            else:
-                break
-
-        return(infection_rate)
-
 class Node:
     def __init__(self, rng, i):
-
         # Node parameters
         self.rng = rng
-        self.time_to_infection       = 3 # -change-
-        self.time_to_recovery        = {'mean': 14, 'min': 10} # -change-
-        symptoms_probability = 0.3
-        self.symptoms_rate    = (symptoms_probability / (1 - symptoms_probability)) / self.time_to_recovery['mean'] # -change-
-        death_probability = 0.0005
-        self.death_rate    = (death_probability / (1 - death_probability)) / self.time_to_recovery['mean'] # -change-
 
         # Run-time initialized
         self.index = i
@@ -176,6 +173,48 @@ class Node:
     def __str__(self):
         return(self.state)
 
+    def update_parameters(self, args = None, rt = None, mean_node_degree = None):
+        '''Update parameters via a dict argument `args`.
+        '''
+        # Hard-coded COVID-19 values
+        if(args is None):
+            self.time_to_infection = {'mean': 3, 'min': 0}  # i.e. incubation time
+            self.time_to_recovery = {'mean': 14, 'min': 0}
+
+            self.probability_of_symptoms = 0.30
+            self.symptoms_rate = (self.probability_of_symptoms / (1 - self.probability_of_symptoms)) / self.time_to_recovery['mean']
+
+            self.probability_of_death_given_symptoms = 0.0005
+            self.death_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery['mean']
+
+            self.beta = rt * ((1 / self.time_to_recovery['mean']) + (1 / self.symptoms_rate))
+            self.transmission_rate = self.beta / mean_node_degree
+
+        else:
+            for k, v, in args.items():
+                if hasattr(self, k):
+                    # Update attribute if it already exists in Simulation class
+                    self.__dict__.update((k, v))
+            
+            # Recalculate dependents
+            keys = args.keys()
+
+            # symptoms rate
+            if(any(key in keys for key in ['probability_of_symptoms'])):
+                self.symptoms_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery['mean']
+
+            # death rate
+            if(any(key in keys for key in ['probability_of_death_given_symptoms'])):
+                self.death_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery['mean']
+
+            # transmission rate
+            if(any(key in keys for key in ['time_to_recovery', 'probability_of_symptoms', 'rt'])):
+                self.beta = rt * ((1 / self.time_to_recovery['mean']) + (1 / self.symptoms_rate))
+                self.transmission_rate = self.beta / mean_node_degree
+
+        # Pass params to corresponding Test object
+        self.test.update_parameters(args)
+
     def set_neighbors(self, neighbor_indices, nodes):
         for i in neighbor_indices:
             self.neighbors.append(nodes[i])
@@ -184,16 +223,16 @@ class Node:
         self.state = 'exposed'
 
         # Pull from geometric distribution with mean = `time_to_infection`
-        self.state_time = geometric_by_mean(self.rng, 3) # -change-
+        self.state_time = geometric_by_mean(self.rng, self.time_to_infection['mean'], self.time_to_infection['min'])
 
-    def get_infected(self, time_to_recovery):
+    def get_infected(self):
         self.state = 'infected asymptomatic'
 
         # Pull from geometric distribution with mean = `time_to_recovery`
-        self.state_time = geometric_by_mean(self.rng, time_to_recovery['mean'], time_to_recovery['min'])
+        self.state_time = geometric_by_mean(self.rng, self.time_to_recovery['mean'], self.time_to_recovery['min'])
         #log.info("Node %d TTR: %d" % (self.index, self.state_time))
 
-    def update(self, rng, global_time, transmission_rate):
+    def update(self, rng, global_time):
         '''Runs once per cycle per node, updating a node based on it's state.
         1. Susceptible: do nothing
         2. Exposed: change to infected state after mean incubation period (3 days)
@@ -215,7 +254,7 @@ class Node:
         elif(self.state == 'exposed'):
             # Progress from exposed to infected state after mean incubation period (3 days)
             if(self.state_time == 0):
-                self.get_infected(self.time_to_recovery)
+                self.get_infected()
 
         # infected asymptomatic
         if(self.state == 'infected asymptomatic'):
@@ -231,7 +270,7 @@ class Node:
 
                 # Spread if not quarantined
                 elif(self.quarantine_time == 0):
-                    self.spread(transmission_rate)
+                    self.spread()
 
         # infected symptomatic
         if(self.state == 'infected symptomatic'):
@@ -247,18 +286,18 @@ class Node:
         elif(self.state == 'recovered'):
             pass
 
-    def spread(self, transmission_rate):
+    def spread(self):
         '''Spreads an infection with some probability `transmission_rate`
         to its neighboring nodes.
         '''
         
         # Iterate through the node's neighbors
         for neighbor in self.neighbors:
-
+    
             # Spread to this specific neighbor...
-            if( neighbor.state == 'susceptible'           #       if the neighbor is susceptible
-            and neighbor.quarantine_time == 0          # and   if the neighbor is not quarantined
-            and self.rng.random() <= transmission_rate):    # and   if the random chance succeeds
+            if( neighbor.state == 'susceptible'                 #       if the neighbor is susceptible
+            and neighbor.quarantine_time == 0                   # and   if the neighbor is not quarantined
+            and self.rng.random() <= self.transmission_rate):   # and   if the random chance succeeds
                 neighbor.get_exposed()
 
                 # Count R_0 cases (cases caused by index cases)
@@ -271,6 +310,9 @@ class Node:
         '''
         # Pull from geometric distribution, mean recovery time = 14
         self.quarantine_time = time_to_recovery['mean'] #geometric_by_mean(self.rng, time_to_recovery)
+        # TODO(jordan): Ask Dr. Fine how long people are put in quarantine for
+        # * min. 14 days no matter what? (implemented)
+        # * until symptoms subside?
 
 class Test:
     '''Handles everything related to a node's testing:
@@ -296,11 +338,25 @@ class Test:
         self.delay = 0
         self.processing_results = False
 
-        # Test settings
-        self.sensitivity = 0.7
-        self.specificity = 0.98
-        self.test_delay = 1
-        self.rate = 0
+    def update_parameters(self, args = None):
+        '''Update parameters via a dict argument `args`.
+        '''
+        # Hard-coded COVID-19 values
+        if(args is None):
+            self.specificity = 0.98
+            self.sensitivity = 0.9
+            self.cost = 25
+            self.results_delay = 1
+            self.rate = 0
+
+        else:
+            for k, v, in args.items():
+                if hasattr(self, k):
+                    # Update attribute if it already exists in Simulation class
+                    self.__dict__.update((k, v))
+            
+            # Recalculate dependents
+            #keys = args.keys()
 
     def update(self, global_time, time_to_recovery):
         '''Runs once per cycle per node, updating its test information as follows:
@@ -358,7 +414,7 @@ class Test:
                 self.results = True
                 
         self.processing_results = True
-        self.delay = geometric_by_mean(self.rng, self.test_delay)
+        self.delay = geometric_by_mean(self.rng, self.results_delay)
 
     def get_test_results(self, time_to_recovery):
         '''After the delay in receiving test results, sets the
