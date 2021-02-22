@@ -161,7 +161,7 @@ class GraphGenerator(UIModule):
         UIModule.__init__(self, root)
         self.frm_graph_gen_ring = self.gen_frm_graph_gen_ring()
         self.frm_graph_gen_ws = self.gen_frm_graph_gen_ws()
-        self.add_param(self.frame, 'population_size', 'Population', default=500)
+        self.add_param(self.frame, 'population_size', 'Population', default=5000)
         self.graph_type = 0
         lbox_graph_gen_type = tk.Listbox(self.frame, height=3, name='lbox_graph_gen_type')
         lbox_graph_gen_type.insert(1, 'Complete')
