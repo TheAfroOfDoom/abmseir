@@ -5,7 +5,7 @@
     "time_horizon": 80,
 
     "disease": {
-        "incubation_time": {
+        "time_to_infection": {
             "mean": 3,
             "min": 0
         },
