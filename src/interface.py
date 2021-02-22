@@ -74,7 +74,7 @@ class Interface(UIModule):
         else:
             return graph_handler.import_graph(
                         graph_type = 'complete',
-                        graph_args = [int(self.graph_manager.frm_graph_gen.getvar('population_size'))]
+                        graph_args = [int(self.graph_manager.frm_graph_gen.frame.getvar('population_size'))]
                     )
 
     def gen_menu(self):
