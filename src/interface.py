@@ -178,7 +178,7 @@ class GraphGenerator(UIModule):
     def gen_frm_graph_gen_ws(self):
         frm_graph_gen_ws = tk.Frame(self.frame)
         self.add_param(frm_graph_gen_ws, 'vertex_degree', 'Neighbors Per Node', default=3)
-        self.add_param(frm_graph_gen_ws, 'diameter_goal', 'Diameter Goal', default=3)
+        self.add_param(frm_graph_gen_ws, 'diameter_goal', 'Diameter Goal', default=42)
         self.add_param(frm_graph_gen_ws, 'rng', 'Generation Seed', default=0)
         return frm_graph_gen_ws
 
