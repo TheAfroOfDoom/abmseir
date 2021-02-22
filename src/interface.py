@@ -45,6 +45,8 @@ class Interface(UIModule):
     def __init__(self):
         UIModule.__init__(self, root=None)
         self.graph_manager = GraphManager(self.frame)
+        self.menu = self.gen_menu()
+        self.frame.config(menu=self.menu)
         '''
         Currently implemented params:
         time_horizon
@@ -74,6 +76,19 @@ class Interface(UIModule):
                         graph_type = 'complete',
                         graph_args = [int(self.graph_manager.frm_graph_gen.getvar('population_size'))]
                     )
+
+    def gen_menu(self):
+        menu = tk.Menu(self.frame)
+        menu_file = tk.Menu(menu, tearoff=0)
+        #menu_file.add_command(label="New")
+        #menu_file.add_command(label="Open")
+        #menu_file.add_command(label="Save")
+        #menu_file.add_command(label="Save as...")
+        #menu_file.add_command(label="Close")
+        menu_file.add_separator()
+        menu_file.add_command(label="Exit", command=self.frame.quit)
+        menu.add_cascade(label="File", menu=menu_file)
+        return menu
     
     def btn_sim_cb(self):
         self.simulate()
