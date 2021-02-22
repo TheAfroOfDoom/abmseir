@@ -41,6 +41,11 @@ class UIModule:
     def pack(self, **args):
         self.frame.pack(args)
 
+    def get_params(self):
+        for param in self.params:
+            self.params[param] = int(self.frame.getvar(param))
+        return self.params
+
 class Interface(UIModule):
     def __init__(self):
         UIModule.__init__(self, root=None)
@@ -72,10 +77,17 @@ class Interface(UIModule):
         if int(self.frame.getvar('graph_mode')) == 1:
             return graph_handler.import_graph(path=self.graph_manager.graph_file_name)
         else:
-            return graph_handler.import_graph(
-                        graph_type = 'complete',
-                        graph_args = [int(self.graph_manager.frm_graph_gen.frame.getvar('population_size'))]
-                    )
+            params = self.graph_manager.frm_graph_gen.get_params()
+            if self.graph_manager.frm_graph_gen.graph_type == 0:
+                # Complete
+                return graph_handler.complete_graph([params['population_size']])
+            elif self.graph_manager.frm_graph_gen.graph_type == 1:
+                # Ring
+                return graph_handler.ring_graph([params['population_size'], params['vertex_degree']])
+            elif self.graph_manager.frm_graph_gen.graph_type == 2:
+                # Watts-Strogatz
+                return graph_handler.wattsstrogatz_graph([params['population_size'], params['vertex_degree'], params['diameter_goal'], params['rng']])
+            
 
     def gen_menu(self):
         menu = tk.Menu(self.frame)
@@ -150,6 +162,7 @@ class GraphGenerator(UIModule):
         self.frm_graph_gen_ring = self.gen_frm_graph_gen_ring()
         self.frm_graph_gen_ws = self.gen_frm_graph_gen_ws()
         self.add_param(self.frame, 'population_size', 'Population', default=500)
+        self.graph_type = 0
         lbox_graph_gen_type = tk.Listbox(self.frame, height=3, name='lbox_graph_gen_type')
         lbox_graph_gen_type.insert(1, 'Complete')
         lbox_graph_gen_type.insert(2, 'Ring')
@@ -171,6 +184,7 @@ class GraphGenerator(UIModule):
 
     def lbox_graph_gen_type_cb(self, event):
         type = self.frame.children['lbox_graph_gen_type'].curselection()[0]
+        self.graph_type = type
         if(type == 0):
             # Complete
             self.frm_graph_gen_ring.pack_forget()
