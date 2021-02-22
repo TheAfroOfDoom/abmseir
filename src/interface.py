@@ -16,8 +16,13 @@ import tkinter.filedialog as tkfd
 import config
 
 class UIModule:
-    def __init__(self):
+    def __init__(self, root):
         self.params = {}
+        self.root = root
+        if(root is not None):
+            self.frame = tk.Frame(root)
+        else:
+            self.frame = tk.Tk()
 
     def add_param(self, root_frame, name, text, default=None):
         # Declares a new param to be added to the interface
@@ -30,11 +35,16 @@ class UIModule:
         frame.pack(anchor=tk.N)
         self.params[name] = default
 
+    def pack_forget(self):
+        self.frame.pack_forget()
+
+    def pack(self, **args):
+        self.frame.pack(args)
+
 class Interface(UIModule):
     def __init__(self):
-        UIModule.__init__(self)
-        self.window = tk.Tk()
-        self.graph_manager = GraphManager(self.window)
+        UIModule.__init__(self, root=None)
+        self.graph_manager = GraphManager(self.frame)
         '''
         Currently implemented params:
         time_horizon
@@ -57,7 +67,7 @@ class Interface(UIModule):
         return sim
         
     def load_graph(self):
-        if int(self.window.getvar('graph_mode')) == 1:
+        if int(self.frame.getvar('graph_mode')) == 1:
             return graph_handler.import_graph(path=self.graph_manager.graph_file_name)
         else:
             return graph_handler.import_graph(
@@ -69,13 +79,13 @@ class Interface(UIModule):
         self.simulate()
 
     def create_window(self):
-        win = self.window
-        self.add_param(win, 'time_horizon', 'Days', default=100)
-        self.add_param(win, 'initial_infected_count', 'Initial Infection Count', default=10)
-        self.add_param(win, 'exogenous_rate', 'Weekly Exogenous Infections', default=10)
-        btn_sim = tk.Button(win, text='Simulate', command=self.btn_sim_cb)
+        self.add_param(self.frame, 'time_horizon', 'Days', default=100)
+        self.add_param(self.frame, 'initial_infected_count', 'Initial Infection Count', default=10)
+        self.add_param(self.frame, 'exogenous_rate', 'Weekly Exogenous Infections', default=10)
+        btn_sim = tk.Button(self.frame, text='Simulate', command=self.btn_sim_cb)
         btn_sim.pack(side=tk.BOTTOM)
-        win.mainloop()
+        self.graph_manager.pack()
+        self.frame.mainloop()
 
     def plot_data(self, data, time_steps):
         fig, ax = plt.subplots(1, figsize=(8, 6))
@@ -89,16 +99,14 @@ class Interface(UIModule):
 
 class GraphManager(UIModule):
     def __init__(self, root):
-        UIModule.__init__(self)
+        UIModule.__init__(self, root)
         self.graph_file_name = None
-        self.root = root
-        self.frame = tk.Frame(root)
         self.frm_graph_load = self.gen_frm_graph_load()
-        self.frm_graph_gen = self.gen_frm_graph_gen()
-        graph_mode = tk.IntVar(root, value=1, name='graph_mode')
+        self.frm_graph_gen = GraphGenerator(self.frame)
+        self.graph_mode = tk.IntVar(root, value=1, name='graph_mode')
         frm_graph_mode = tk.Frame(root)
-        rbtn_graph_load = tk.Radiobutton(frm_graph_mode, text='Load Graph', command=self.rbtn_graph_load_cb, variable=graph_mode, value=1)
-        rbtn_graph_gen = tk.Radiobutton(frm_graph_mode, text='Generate Graph', command=self.rbtn_graph_gen_cb, variable=graph_mode, value=2)
+        rbtn_graph_load = tk.Radiobutton(frm_graph_mode, text='Load Graph', command=self.rbtn_graph_load_cb, variable=self.graph_mode, value=1)
+        rbtn_graph_gen = tk.Radiobutton(frm_graph_mode, text='Generate Graph', command=self.rbtn_graph_gen_cb, variable=self.graph_mode, value=2)
         rbtn_graph_load.pack(side=tk.LEFT)
         rbtn_graph_gen.pack(side=tk.RIGHT)
         frm_graph_mode.pack(side=tk.BOTTOM)
@@ -109,17 +117,6 @@ class GraphManager(UIModule):
         btn_graph_select = tk.Button(frm_graph_load, text='Select Graph', command=self.btn_graph_select_cb)
         btn_graph_select.pack(side=tk.LEFT)
         return frm_graph_load
-
-    def gen_frm_graph_gen(self):
-        frm_graph_gen = tk.Frame(self.root)
-        self.add_param(frm_graph_gen, 'population_size', 'Population', default=500)
-        lbox_graph_gen_type = tk.Listbox(frm_graph_gen, height=3, name='lbox_graph_gen_type')
-        lbox_graph_gen_type.insert(1, 'Complete')
-        lbox_graph_gen_type.insert(2, 'Regular')
-        lbox_graph_gen_type.insert(3, 'Watts-Strogatz')
-        lbox_graph_gen_type.bind('<<ListboxSelect>>', self.lbox_graph_gen_type_cb)
-        lbox_graph_gen_type.pack()
-        return frm_graph_gen
 
     def btn_graph_select_cb(self):
         self.graph_file_name = tkfd.askopenfilename(initialdir='./' + config.settings['graph']['directory'])
@@ -132,18 +129,45 @@ class GraphManager(UIModule):
         self.frm_graph_load.pack_forget()
         self.frm_graph_gen.pack(side=tk.BOTTOM)
 
-    def lbox_graph_gen_type_cb(self, event):
-        type = self.frm_graph_gen.children['lbox_graph_gen_type'].curselection()[0]
-        if(type == 1):
-            # Complete
-            pass
-        if(type == 2):
-            # Regular
-            pass
-        if(type == 3):
-            # Watts-strogatz
-            pass
+class GraphGenerator(UIModule):
+    def __init__(self, root):
+        UIModule.__init__(self, root)
+        self.frm_graph_gen_ring = self.gen_frm_graph_gen_ring()
+        self.frm_graph_gen_ws = self.gen_frm_graph_gen_ws()
+        self.add_param(self.frame, 'population_size', 'Population', default=500)
+        lbox_graph_gen_type = tk.Listbox(self.frame, height=3, name='lbox_graph_gen_type')
+        lbox_graph_gen_type.insert(1, 'Complete')
+        lbox_graph_gen_type.insert(2, 'Ring')
+        lbox_graph_gen_type.insert(3, 'Watts-Strogatz')
+        lbox_graph_gen_type.bind('<<ListboxSelect>>', self.lbox_graph_gen_type_cb)
+        lbox_graph_gen_type.pack()
 
+    def gen_frm_graph_gen_ring(self):
+        frm_graph_gen_ring = tk.Frame(self.frame)
+        self.add_param(frm_graph_gen_ring, 'vertex_degree', 'Neighbors Per Node', default=3)
+        return frm_graph_gen_ring
+
+    def gen_frm_graph_gen_ws(self):
+        frm_graph_gen_ws = tk.Frame(self.frame)
+        self.add_param(frm_graph_gen_ws, 'vertex_degree', 'Neighbors Per Node', default=3)
+        self.add_param(frm_graph_gen_ws, 'diameter_goal', 'Diameter Goal', default=3)
+        self.add_param(frm_graph_gen_ws, 'rng', 'Generation Seed', default=0)
+        return frm_graph_gen_ws
+
+    def lbox_graph_gen_type_cb(self, event):
+        type = self.frame.children['lbox_graph_gen_type'].curselection()[0]
+        if(type == 0):
+            # Complete
+            self.frm_graph_gen_ring.pack_forget()
+            self.frm_graph_gen_ws.pack_forget()
+        elif(type == 1):
+            # Ring
+            self.frm_graph_gen_ws.pack_forget()
+            self.frm_graph_gen_ring.pack()
+        elif(type == 2):
+            # Watts-Strogatz
+            self.frm_graph_gen_ring.pack_forget()
+            self.frm_graph_gen_ws.pack()
 
 if __name__ == '__main__':
     interface = Interface()
