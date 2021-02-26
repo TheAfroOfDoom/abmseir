@@ -1,2 +1,0 @@
-* Paltiel only has Susceptible/InfectedAsymp. individuals being tested. Should we test all individuals?
-

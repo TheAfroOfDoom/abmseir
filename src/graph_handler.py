@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/19/2021
+# Last Modified: 02/26/2021
 # Modified By: Jordan Williams
 ###
 
@@ -19,6 +19,7 @@ from log_handler import logging as log
 # Packages
 import networkx as nx
 import numpy as np
+import os
 import random
 import re
 import time
@@ -51,7 +52,7 @@ def ring_graph(args):
 
     ring_graph = nx.Graph()
     for x in range(n):
-        for y in range(k // 2): # FIXME(jordan): This will only give even-valued degrees
+        for y in range(k // 2): # TODO(jordan): This will only give even-valued degrees
             ring_graph.add_edge(x, (x + y + 1) % n)
 
     return(ring_graph)
@@ -189,7 +190,7 @@ def import_graph(graph_type = None, graph_args = None, rng = None, path = None):
         # If graph has an element of randomness and rng is not specified, generate a new seed
         if(graph_definition['random'].lower() == 'true'
             and rng is None):
-            rng = int(1000 * time.time()) % 2**32
+            rng = 0# int(1000 * time.time()) % 2**32
 
         # Build graph args from config (if none are specified)
         if(graph_args is None):
@@ -199,9 +200,20 @@ def import_graph(graph_type = None, graph_args = None, rng = None, path = None):
         file_name = build_file_name(graph_type, graph_args, rng)
 
         # Read from file if it exists
-        path = './' + config.settings['graph']['directory'] + file_name
+        path = config.settings['graph']['directory'] + file_name
+        
+        head, tail = os.path.split(path)
+        file_name = tail
+
+    # If path is provided...
+    else:
+        # Set file name
+        # https://stackoverflow.com/a/8384786
+        head, tail = os.path.split(path)
+        file_name = tail
+        
+    log.info("Trying to read graph from '%s'..." % (path))
     try:
-        log.info("Attempting to read graph from '%s'..." % (path))
         g = nx.read_adjlist(path, nodetype = int)
         log.info("Graph successfully read from '%s'..." % (path))
     except:
@@ -228,6 +240,9 @@ def import_graph(graph_type = None, graph_args = None, rng = None, path = None):
         # Save graph to file
         nx.write_adjlist(g, path)
         log.info("Wrote new graph to '%s' (took %.6fs)." % (path, t1 - t0))
+
+    # Give descriptive name to graph
+    g.name = file_name[:-1 * len(config.settings['graph']['extension'])]
 
     # Return graph to caller function
     return(g)

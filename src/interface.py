@@ -3,12 +3,14 @@
 # Created: 02/19/2021
 # Author: Aidan Tokarski (astoka21@colby.edu)
 # -----
-# Last Modified: 02/21/2021
+# Last Modified: 02/25/2021
 # Modified By: Jordan Williams
 ###
 
+from tkinter.constants import SUNKEN
 from log_handler import logging as log
 from simulation import Simulation
+import datetime
 import graph_handler
 import matplotlib.pyplot as plt
 import tkinter as tk
@@ -61,33 +63,41 @@ class Interface(UIModule):
 
     def simulate(self):
         sim = self.generate_sim()
-        time_steps = []
+        time_steps = [0]
         for i in range(self.params['time_horizon']):
-            time_steps.append(i)
+            time_steps.append(i + 1)
             sim.run_step()
-        self.plot_data(sim.data, time_steps)
+        self.plot_data(sim.data, time_steps, sim.all_states)
+        self.export_data_to_file(sim)
+        log.info("R_0: %.2f" % (sim.calculate_r_0()))
 
     def generate_sim(self):
         sim = Simulation(self.load_graph())
         log.info(self.params)
-        sim.update_parameters(self.params)
+        sim.update_parameters(self.params)    
+        sim.pre_step() # Initializes simulation
         return sim
         
     def load_graph(self):
         if int(self.frame.getvar('graph_mode')) == 1:
-            return graph_handler.import_graph(path=self.graph_manager.graph_file_name)
+            return graph_handler.import_graph(path = self.graph_manager.graph_file_name)
         else:
             params = self.graph_manager.frm_graph_gen.get_params()
             if self.graph_manager.frm_graph_gen.graph_type == 0:
                 # Complete
-                return graph_handler.complete_graph([params['population_size']])
+                return graph_handler.import_graph(graph_type = 'complete',
+                            graph_args = [params['population_size']]
+                            )
             elif self.graph_manager.frm_graph_gen.graph_type == 1:
                 # Ring
-                return graph_handler.ring_graph([params['population_size'], params['vertex_degree']])
+                return graph_handler.import_graph(graph_type = 'ring',
+                            graph_args = [params['population_size'], params['node_degree']]
+                            )
             elif self.graph_manager.frm_graph_gen.graph_type == 2:
                 # Watts-Strogatz
-                return graph_handler.wattsstrogatz_graph([params['population_size'], params['vertex_degree'], params['diameter_goal'], params['rng']])
-            
+                return graph_handler.import_graph(graph_type = 'wattsstrogatz',
+                            graph_args = [params['population_size'], params['node_degree'], params['diameter_goal'], params['rng']]
+                            )
 
     def gen_menu(self):
         menu = tk.Menu(self.frame)
@@ -114,15 +124,30 @@ class Interface(UIModule):
         self.graph_manager.pack()
         self.frame.mainloop()
 
-    def plot_data(self, data, time_steps):
+    def plot_data(self, data, time_steps, states):
         fig, ax = plt.subplots(1, figsize=(8, 6))
-        ax.plot(time_steps, data['susceptible'], color='green', label='sus')
-        ax.plot(time_steps, data['exposed'], color='orange', label='exp')
-        ax.plot(time_steps, data['infected asymptomatic'], color='red', label='asymp')
-        ax.plot(time_steps, data['infected symptomatic'], color='purple', label='symp')
-        ax.plot(time_steps, data['recovered'], color='blue', label='rec')
-        ax.plot(time_steps, data['dead'], color='brown', label='dead')
+        ax.set_prop_cycle(color = ['green', 'orange', 'red', 'purple', 'blue', 'brown'])
+        for state in states:
+            ax.plot(time_steps, data[state], label = state)
+        ax.legend()
         plt.show()
+
+    def export_data_to_file(self, simulation):
+        '''https://stackoverflow.com/a/19476284
+        '''
+        # TODO(jordan): Change this to when the simulation started instead of when we're saving
+        time = datetime.datetime.now().strftime('%Y-%m-%dT%H%M%S')
+        default_extension = '.csv'
+        f = tkfd.asksaveasfile(mode = 'w',
+                defaultextension = default_extension,
+                filetypes = [('CSV', '*.csv')],
+                initialdir = config.settings['output']['data']['directory'],
+                initialfile = 'simulation_%s_%s' % (time, simulation.graph.name + default_extension),
+                title = 'Save simulation data')
+        if f is None: # asksaveasfile return `None` if dialog closed with "cancel".
+            return
+        f.write(simulation.export_data())
+        f.close()
 
 class GraphManager(UIModule):
     def __init__(self, root):
@@ -146,7 +171,7 @@ class GraphManager(UIModule):
         return frm_graph_load
 
     def btn_graph_select_cb(self):
-        self.graph_file_name = tkfd.askopenfilename(initialdir='./' + config.settings['graph']['directory'])
+        self.graph_file_name = tkfd.askopenfilename(initialdir = config.settings['graph']['directory'])
 
     def rbtn_graph_load_cb(self):
         self.frm_graph_gen.pack_forget()
@@ -172,12 +197,12 @@ class GraphGenerator(UIModule):
 
     def gen_frm_graph_gen_ring(self):
         frm_graph_gen_ring = tk.Frame(self.frame)
-        self.add_param(frm_graph_gen_ring, 'vertex_degree', 'Neighbors Per Node', default=3)
+        self.add_param(frm_graph_gen_ring, 'node_degree', 'Neighbors Per Node', default=3)
         return frm_graph_gen_ring
 
     def gen_frm_graph_gen_ws(self):
         frm_graph_gen_ws = tk.Frame(self.frame)
-        self.add_param(frm_graph_gen_ws, 'vertex_degree', 'Neighbors Per Node', default=3)
+        self.add_param(frm_graph_gen_ws, 'node_degree', 'Neighbors Per Node', default=3)
         self.add_param(frm_graph_gen_ws, 'diameter_goal', 'Diameter Goal', default=42)
         self.add_param(frm_graph_gen_ws, 'rng', 'Generation Seed', default=0)
         return frm_graph_gen_ws

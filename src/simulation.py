@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/21/2021
+# Last Modified: 02/26/2021
 # Modified By: Jordan Williams
 ###
 
@@ -55,10 +55,10 @@ class Simulation:
         if(args is None):
             log.debug("Default args passed.")
             # Population
-            self.population_size = 1500
+            self.population_size = 5000
             self.initial_infected_count = 10
 
-            self.time_horizon = 100
+            self.time_horizon = 80
             self.exogenous_rate = 10
 
             # Disease
@@ -105,22 +105,32 @@ class Simulation:
             chosen_node = self.nodes[chosen_node_index]
             chosen_node.get_infected()
             chosen_node.index_case = True
+
+        # Count all initial states and add to data
+        self.count_states(self.time)
+
         log.debug(initial_infected_nodes)
 
+        # Increment global time
+        self.time += 1
+
     def run_step(self):
-
-        if self.time == 0:
-            # Initializes simulation
-            self.pre_step()
-
         # Add exogenous infections weekly, after the first week
-        if(self.time % 7 == 0 and self.time > 0):
+        if(self.time % 7 == 0 and self.time != 0):
             self.add_exogenous_cases(self.exogenous_rate)
     
+        # Count each state and add to daily data
+        self.count_states(self.time)
+
+        # Increment global time
+        self.time += 1
+    
+    def count_states(self, t):
         # Daily counts
         data_per_state = {}
         for state in self.all_states:
             data_per_state[state] = 0
+        data_per_state['day'] = int(t)
 
         for node in self.nodes:
             data_per_state[node.state] += 1
@@ -129,9 +139,17 @@ class Simulation:
         # Save data
         self.data = self.data.append(data_per_state, ignore_index = True)
 
-        # Increment global time
-        self.time += 1
+    def calculate_r_0(self):            
+            total_recovered, total_spread_to = 0, 0
+            # R_0 calculating
+            for node in self.nodes:
+                if(node.index_case):
+                    total_recovered += 1
+                    total_spread_to += node.nodes_infected
 
+            # Return R_0
+            return(total_spread_to / total_recovered)
+            
     def add_exogenous_cases(self, amount):
         '''Sets a number of cases specified by `amount` to exposed.
         This represents cases coming onto campus from outside sources,
@@ -152,6 +170,9 @@ class Simulation:
         chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
         for i in chosen_indices:
             self.nodes[i].get_exposed()
+
+    def export_data(self):
+        return(self.data.to_csv(line_terminator = '\n'))
 
 class Node:
     def __init__(self, rng, i):
@@ -187,7 +208,7 @@ class Node:
             self.probability_of_death_given_symptoms = 0.0005
             self.death_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery['mean']
 
-            self.beta = rt * ((1 / self.time_to_recovery['mean']) + (1 / self.symptoms_rate))
+            self.beta = rt * ((1 / self.time_to_recovery['mean']) + self.symptoms_rate)
             self.transmission_rate = self.beta / mean_node_degree
 
         else:
@@ -257,33 +278,35 @@ class Node:
                 self.get_infected()
 
         # infected asymptomatic
-        if(self.state == 'infected asymptomatic'):
+        elif(self.state == 'infected asymptomatic'):
+            # Spread if not quarantined
+            if(self.quarantine_time == 0):
+                self.spread()
+
+            # Gain symptoms with some probability (0.30) at a calculated rate
+            if(rng.random() < self.symptoms_rate):
+                self.state = 'infected symptomatic'
+                
             # Progress from infected to recovered state after mean recovery time (14 days)
             if(self.state_time == 0):
                 self.state = 'recovered'
-
-            # If we are still infected...
-            else:
-                # Gain symptoms with some probability (0.30)
-                if(rng.random() <= self.symptoms_rate):
-                    self.state = 'infected symptomatic'
-
-                # Spread if not quarantined
-                elif(self.quarantine_time == 0):
-                    self.spread()
 
         # infected symptomatic
-        if(self.state == 'infected symptomatic'):
-            # Progress from infected to recovered state after mean recovery time (14 days)
-            if(self.state_time == 0):
-                self.state = 'recovered'
-
-            # If we are still infected...
-            elif(rng.random() <= self.death_rate):
+        elif(self.state == 'infected symptomatic'):
+            # Die with some probability (0.0005) at a calculated rate
+            if(rng.random() < self.death_rate):
                 self.state = 'dead'
+
+            # Progress from infected to recovered state after mean recovery time (14 days)
+            elif(self.state_time == 0):
+                self.state = 'recovered'
 
         # recovered
         elif(self.state == 'recovered'):
+            pass
+
+        # dead
+        elif(self.state == 'dead'):
             pass
 
     def spread(self):
@@ -297,7 +320,7 @@ class Node:
             # Spread to this specific neighbor...
             if( neighbor.state == 'susceptible'                 #       if the neighbor is susceptible
             and neighbor.quarantine_time == 0                   # and   if the neighbor is not quarantined
-            and self.rng.random() <= self.transmission_rate):   # and   if the random chance succeeds
+            and self.rng.random() < self.transmission_rate):   # and   if the random chance succeeds
                 neighbor.get_exposed()
 
                 # Count R_0 cases (cases caused by index cases)
@@ -399,7 +422,7 @@ class Test:
         if(self.node.state == 'infected asymptomatic'
         #or self.node.state == 'infected'
         ):
-            if(self.rng.random() <= self.sensitivity):
+            if(self.rng.random() < self.sensitivity):
                 self.results = True
             else:
                 self.results = False
@@ -407,7 +430,7 @@ class Test:
 
         # Use negative rates for susceptible/exposed/recovered individuals
         else:
-            if(self.rng.random() <= self.specificity):
+            if(self.rng.random() < self.specificity):
                 self.results = False
                 pass
             else:
@@ -431,8 +454,3 @@ def geometric_by_mean(rng, mean, min = 0):
     p = 1 / (mean - min)
 
     return(rng.geometric(p) + min)
-
-def bisect(lo, hi):
-    '''Returns the average of two numeric parameters.
-    '''
-    return (lo + hi) / 2
