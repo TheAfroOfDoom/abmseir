@@ -20,6 +20,7 @@ graphs/ring/
 
 # Specific data
 Fall 2020*
+output/data/*
 
 # Batch scripts
 *.bat

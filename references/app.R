@@ -408,8 +408,8 @@ server <- function(input, output) {
             # S = (1-β(Ia/(S+Ia+E)))S + μF - S_{i-1}(1-rn) - X
             max(0,mat[i,2]*(1-beta*(mat[i,5]/(mat[i,2]+mat[i,5]+mat[i,4])))+mat[i,3]*mu-mat[i-1,2]*(1-input$test_specificity)/cycles.per.test-superspreader.event[i+1]*input$new_infections_per_shock),
 
-            # F: False-Positives
-            # F = (1-μ)F + S_{i-1}(1-rn)
+            # FP: False-Positives
+            # FP = (1-μ)F + S_{i-1}(1-rn)
             max(0,mat[i,3]*(1-mu)+mat[i-1,2]*(1-input$test_specificity)/cycles.per.test),
 
             # E: Exposed
@@ -424,12 +424,12 @@ server <- function(input, output) {
             # Is = (1-δ-ρ)Is + σ(Ia+R)
             max(0,mat[i,6]*(1-delta-rho)+(mat[i,5]+mat[i,7])*sigma),
 
-            # Q: Quarantined/Isolated
-            # Q = (1-σ-ρ)Q + (rp)Ia_{i-1}
+            # TP: True Positives (Infected Symptomatic, those who test positive)
+            # TP = (1-σ-ρ)TP + (rp)Ia_{i-1}
             max(0,mat[i,7]*(1-sigma-rho)+mat[i-1,5]*input$test_sensitivity/cycles.per.test),
 
             # R: Recovered
-            # R = R + ρ(Ia+Is+Q)
+            # R = R + ρ(Ia+Is+TP)
             max(0,mat[i,8]+(mat[i,5]+mat[i,6]+mat[i,7])*rho),
 
             # D: Dead

@@ -1,7 +1,7 @@
 {
     "graph": {
         "active": {
-            "type": "watts-strogatz",
+            "type": "wattsstrogatz",
             "properties": [1500, 42, 3],
             "count": 1
 
@@ -50,5 +50,10 @@
         },
         "directory": "graphs/",
         "extension": ".adjlist"
+    },
+    "output": {
+        "data": {
+            "directory": "output/data"
+        }
     }
 }

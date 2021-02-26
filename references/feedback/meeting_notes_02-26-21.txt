@@ -1,0 +1,60 @@
+Discussion Points:
+
+* Paltiel only has Susceptible/InfectedAsymp. individuals being tested. Should we test all individuals?
+
+aidan notes
+* gui is very basic but provides a template to move forward, functionality easier to implement through GUI (user friendly etc.)
+* sim provides the framework
+* gui provides functionality
+* curious about goals in general
+* we should setup an agile relationship - user defines needs, dev fits to needs
+
+================================================================================================================================================================
+
+Notes:
+
+- meeting saturday, having deadline -> work faster
+
+- technical stuff:
+    - (jordan idea) add ability to define curves for parameters that tool will pass into `update_parameters()` automatically
+        - he specifically asked for something similar to this, glad we took OOP approach and can just pass new params to `update_parameters()` mid-way through simulation. our setup is really good for this
+    - allow us to increase exogenous rates as the semester continues, likely give a more accurate model
+    - Question: [* Paltiel only has Susceptible/InfectedAsymp. individuals being tested. Should we test all individuals?]
+        - we (UMassD) do not test Recovered people since they will always test positive after having it
+    - quarantine in fall was likely for 14 days but should ask someone in Health Services to be sure
+        - CDC updated to 10 days
+    - unsure about how to deal with odd degree'd ring lattice generation, but not really important tbh
+        - calculate more accurate ratio of commuters:residents from fall data
+        - if we want to have different node types (commuter vs residents), how to generate graph?
+            - start with two distinct rings w/different k, link them together?
+            - not worth thinking about right now
+
+- our model is an "agent-based"/"individual-based" model
+    - will be interesting to be able to add individual behaviors, e.g. mask wearing, social distancing, changing individual transmission rates
+
+- focus on getting GUI to a workable spot by friday/saturday (deadline for meeting)
+    - getting data over multiple runs - input sample size
+    - expand settable parameters
+    - not worth training him on how to modify code and run `main.py`, just make the GUI usable
+    - summarized what the Agile framework was -> more frequent meetings so he can tell us what he likes about GUI and we then change it.
+        - probably weekly meetings
+
+- model validation
+    - continue to try to match with paltiel
+    - try to match with fall data -> good to compare real data with to see if SWN model is better than complete graph
+    - calculate weekly cases - good value to see model accuracy
+    - very important to track isolation/quarantine curve - knowing peak so that Health Services knows how many rooms we'd need for quarantining
+    - look at Paltiel paper for more specific values to compare to
+    - current spring data seems like 3x higher case rate than fall data.
+        - play with params to see if we can match this? i'm thinking it might be an exogneous thing since surrounding rates in community are higher [citation needed]
+    - if we still need this by next fall, can see effect of vaccines
+        - likely won't be an effect on current semester since Massachusetts estimates give May-July for general population (of which students are within)
+        - can modify the following params to see vaccine effect:
+            - give individual nodes vaccinations
+            - change Rt overall
+
+- funding: he reached out to someone and process will likely start soon (yay)
+
+- long term, publish tool publically
+    - good to have donation system so that anyone can use it but they can donate to us if feeling generous
+    - publically available - great for resumes and demo-ing what we made to recruiters etc.
