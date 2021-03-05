@@ -3,7 +3,7 @@
 # Created: 02/19/2021
 # Author: Aidan Tokarski (astoka21@colby.edu)
 # -----
-# Last Modified: 02/25/2021
+# Last Modified: 03/04/2021
 # Modified By: Jordan Williams
 ###
 
@@ -61,19 +61,15 @@ class Interface(UIModule):
 
     def simulate(self):
         sim = self.generate_sim()
-        time_steps = [0]
-        for i in range(self.params['time_horizon']):
-            time_steps.append(i + 1)
-            sim.run_step()
-        self.output_panel.plot_data(sim.data, time_steps, sim.all_states)
+        sim.run()
+        self.output_panel.plot_data(sim.data, sim.data['day'], sim.all_states)
         self.export_data_to_file(sim)
-        log.info("R_0: %.2f" % (sim.calculate_r_0()))
+        log.info("R0: %.2f" % (sim.calculate_r0()))
 
     def generate_sim(self):
         sim = Simulation(self.load_graph())
         log.info(self.params)
-        sim.update_parameters(self.get_params())    
-        sim.pre_step() # Initializes simulation
+        sim.set_parameters(self.get_params())
         return sim
         
     def load_graph(self):
@@ -157,7 +153,6 @@ class OutputPanel(UIModule):
         for state in states:
             self.output_graph.plot(time_steps, data[state], label = state)
         self.output_graph.legend()
-
 
 class GraphManager(UIModule):
     def __init__(self, root):

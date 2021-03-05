@@ -22,21 +22,21 @@
     "scenarios": {
         "Best": {
             "exogenous_rate": 5,
-            "rt": 1.5,
+            "r0": 1.5,
             "test": {
                 "specificity": 0.997
             }
         },
         "Base": {
             "exogenous_rate": 10,
-            "rt": 2.5,
+            "r0": 2.5,
             "test": {
                 "specificity": 0.98
             }
         },
         "Worst": {
             "exogenous_rate": 25,
-            "rt": 3.5,
+            "r0": 3.5,
             "test": {
                 "specificity": 0.98
             }

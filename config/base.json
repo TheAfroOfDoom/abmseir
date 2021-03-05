@@ -1,9 +1,8 @@
 {
     "graph": {
         "active": {
-            "type": "wattsstrogatz",
-            "properties": [1500, 42, 3],
-            "count": 1
+            "type": "complete",
+            "properties": [1500]
 
             ,"OLDWSproperties": [1500, 42, 3]
         },
