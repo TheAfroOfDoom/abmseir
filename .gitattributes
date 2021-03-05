@@ -1,0 +1,2 @@
+# Ignore language statistics on references
+references/* linguist-detectable=false
