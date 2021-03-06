@@ -24,17 +24,21 @@ class UIController(tk.Tk):
 
     def __init__(self):
         tk.Tk.__init__(self)
+        self.title('SWN-COV')
+        self.resizable(0, 0)
         self.interface = self.create_interface()
         self.config(menu=self.gen_menu())
         self.frames = self.load_frames()
         self.show_frame(ParameterPanel)
         self.show_frame(GraphManager)
         self.show_frame(GraphLoader)
-        self.show_frame(OutputPanel)
+        #self.show_frame(OutputPanel, tk.E)
+        btn_sim = tk.Button(self, text='Simulate', command=self.btn_sim_cb)
+        btn_sim.pack(side=tk.BOTTOM)
 
     def create_interface(self):
         interface = tk.Frame(self)
-        interface.pack(side="top", fill="both", expand = True)
+        interface.pack(side="top", fill="both", expand=True)
         return interface
 
     def load_frames(self):
@@ -46,9 +50,9 @@ class UIController(tk.Tk):
 
         return frames
 
-    def show_frame(self, wrapper):
+    def show_frame(self, wrapper, sticky=None):
         frame = self.frames[wrapper]
-        frame.grid(row=frame.row, column=frame.col)
+        frame.grid(row=frame.row, column=frame.col, sticky=sticky)
 
     def hide_frame(self, wrapper):
         frame = self.frames[wrapper]
@@ -73,16 +77,8 @@ class UIController(tk.Tk):
 
     def simulate(self):
         sim = self.generate_sim()
-<<<<<<< HEAD
-        time_steps = [0]
-        for i in range(self.params['time_horizon']):
-            time_steps.append(i + 1)
-            sim.run_step()
-        self.frames[OutputPanel].plot_data(sim.data, time_steps, sim.all_states)
-=======
         sim.run()
-        self.output_panel.plot_data(sim.data, sim.data['day'], sim.all_states)
->>>>>>> 354165796cb28fce19864a250601edf8a4754f59
+        self.frames[OutputPanel].plot_data(sim.data, sim.data['day'], sim.all_states)
         self.export_data_to_file(sim)
         log.info("R0: %.2f" % (sim.calculate_r0()))
 
@@ -115,10 +111,6 @@ class UIController(tk.Tk):
                 return graph_handler.import_graph(graph_type = 'wattsstrogatz',
                             graph_args = [params['population_size'], params['node_degree'], params['diameter_goal'], params['rng']]
                             )
-        
-    def create_window(self):
-        btn_sim = tk.Button(self, text='Simulate', command=self.btn_sim_cb)
-        btn_sim.pack(side=tk.BOTTOM)
 
     def export_data_to_file(self, simulation):
         '''https://stackoverflow.com/a/19476284
@@ -140,7 +132,7 @@ class UIController(tk.Tk):
 class UIModule(tk.Frame):
 
     def __init__(self, root, controller, row=0, col=0):
-        tk.Frame.__init__(self, root)
+        tk.Frame.__init__(self, root, relief=tk.RAISED, borderwidth=1)
         self.params = {}
         self.controller = controller
         self.row = row
@@ -210,7 +202,7 @@ class GraphManager(UIModule):
 
 class GraphLoader(UIModule):
     def __init__(self, root, controller):
-        UIModule.__init__(self, root, controller, row=2, col=3)
+        UIModule.__init__(self, root, controller, row=2, col=0)
         btn_graph_select = tk.Button(self, text='Select Graph', command=self.btn_graph_select_cb)
         btn_graph_select.pack(side='left')
 
