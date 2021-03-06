@@ -32,7 +32,7 @@ class UIController(tk.Tk):
         self.show_frame(ParameterPanel)
         self.show_frame(GraphManager)
         self.show_frame(GraphLoader)
-        #self.show_frame(OutputPanel, tk.E)
+        self.show_frame(OutputPanel, tk.E)
         btn_sim = tk.Button(self, text='Simulate', command=self.btn_sim_cb)
         btn_sim.pack(side=tk.BOTTOM)
 
@@ -65,11 +65,6 @@ class UIController(tk.Tk):
     def gen_menu(self):
         menu = tk.Menu(self)
         menu_file = tk.Menu(menu, tearoff=0)
-        #menu_file.add_command(label="New")
-        #menu_file.add_command(label="Open")
-        #menu_file.add_command(label="Save")
-        #menu_file.add_command(label="Save as...")
-        #menu_file.add_command(label="Close")
         menu_file.add_separator()
         menu_file.add_command(label="Exit", command=self.quit)
         menu.add_cascade(label="File", menu=menu_file)
@@ -84,8 +79,7 @@ class UIController(tk.Tk):
 
     def generate_sim(self):
         sim = Simulation(self.load_graph())
-        log.info(self.params)
-        sim.set_parameters(self.get_params())
+        sim.set_parameters(self.frames[ParameterPanel].get_params())
         return sim
 
     def btn_sim_cb(self):
@@ -96,17 +90,17 @@ class UIController(tk.Tk):
             return graph_handler.import_graph(path = self.frames[GraphManager].graph_file_name)
         else:
             params = self.frames[GraphGenerator].get_params()
-            if self.frames[GraphManager].graph_type == 0:
+            if self.frames[GraphGenerator].graph_type == 0:
                 # Complete
                 return graph_handler.import_graph(graph_type = 'complete',
                             graph_args = [params['population_size']]
                             )
-            elif self.frames[GraphManager].graph_type == 1:
+            elif self.frames[GraphGenerator].graph_type == 1:
                 # Ring
                 return graph_handler.import_graph(graph_type = 'ring',
                             graph_args = [params['population_size'], params['node_degree']]
                             )
-            elif self.frames[GraphManager].graph_type == 2:
+            elif self.frames[GraphGenerator].graph_type == 2:
                 # Watts-Strogatz
                 return graph_handler.import_graph(graph_type = 'wattsstrogatz',
                             graph_args = [params['population_size'], params['node_degree'], params['diameter_goal'], params['rng']]
@@ -138,12 +132,12 @@ class UIModule(tk.Frame):
         self.row = row
         self.col = col
 
-    def add_param(self, name, text, default=None):
+    def add_param(self, name, text, default=None, root=None):
         # Declares a new param to be added to the interface
         var = tk.IntVar(self, value=default, name=name)
-        entry = tk.Entry(self, bd=5, textvariable=var)
+        entry = tk.Entry(root if (root != None) else self, bd=5, textvariable=var)
         entry.pack(side='right')
-        label = tk.Label(self, text=text)
+        label = tk.Label(root if (root != None) else self, text=text)
         label.pack(side='right')
         self.params[name] = default
 
@@ -173,14 +167,15 @@ class OutputPanel(UIModule):
     def create_graph_panel(self):
         f = Figure(figsize=(5,5), dpi=100)
         self.output_graph = f.add_subplot(111)
-        canvas = FigureCanvasTkAgg(f, self)
-        canvas.get_tk_widget().pack(side=tk.RIGHT, expand=True)
+        self.canvas = FigureCanvasTkAgg(f, self)
+        self.canvas.get_tk_widget().pack(side=tk.RIGHT, expand=True)
         self.output_graph.set_prop_cycle(color = ['green', 'orange', 'red', 'purple', 'blue', 'brown'])
 
     def plot_data(self, data, time_steps, states):
         for state in states:
             self.output_graph.plot(time_steps, data[state], label = state)
         self.output_graph.legend()
+        self.canvas.draw()
 
 class GraphManager(UIModule):
     def __init__(self, root, controller):
@@ -214,6 +209,7 @@ class GraphGenerator(UIModule):
         UIModule.__init__(self, root, controller, row=2, col=0)
         self.frm_graph_gen_ring = self.gen_frm_graph_gen_ring()
         self.frm_graph_gen_ws = self.gen_frm_graph_gen_ws()
+        self.add_param('population_size', 'Population', default=5000)
         self.graph_type = 0
         lbox_graph_gen_type = tk.Listbox(self, height=3, name='lbox_graph_gen_type')
         lbox_graph_gen_type.insert(1, 'Complete')
@@ -224,15 +220,14 @@ class GraphGenerator(UIModule):
 
     def gen_frm_graph_gen_ring(self):
         frm_graph_gen_ring = tk.Frame(self)
-        self.add_param('node_degree', 'Neighbors Per Node', default=3)
+        self.add_param('node_degree', 'Neighbors Per Node', default=3, root=frm_graph_gen_ring)
         return frm_graph_gen_ring
 
     def gen_frm_graph_gen_ws(self):
         frm_graph_gen_ws = tk.Frame(self)
-        self.add_param('node_degree', 'Neighbors Per Node', default=3)
-        self.add_param('diameter_goal', 'Diameter Goal', default=42)
-        self.add_param('rng', 'Generation Seed', default=0)
-        self.add_param('population_size', 'Population', default=5000)
+        self.add_param('node_degree', 'Neighbors Per Node', default=3, root=frm_graph_gen_ws)
+        self.add_param('diameter_goal', 'Diameter Goal', default=42, root=frm_graph_gen_ws)
+        self.add_param('rng', 'Generation Seed', default=0, root=frm_graph_gen_ws)
         return frm_graph_gen_ws
 
     def lbox_graph_gen_type_cb(self, event):
