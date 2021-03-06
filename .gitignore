@@ -22,6 +22,11 @@ graphs/ring/
 Fall 2020*
 output/data/*
 
+# Outputs
+*.spec
+dist/
+build/
+
 # Batch scripts
 *.bat
 
