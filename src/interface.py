@@ -24,7 +24,7 @@ class UIController(tk.Tk):
 
     def __init__(self):
         tk.Tk.__init__(self)
-        self.title('SWN-COV')
+        self.title('SWN-COV Beta v1.0.0')
         self.resizable(0, 0)
         self.interface = self.create_interface()
         self.config(menu=self.gen_menu())
