@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/04/2021
+# Last Modified: 03/06/2021
 # Modified By: Jordan Williams
 ###
 
@@ -232,23 +232,21 @@ class Node:
         '''
         # Hard-coded COVID-19 values
         if(args is None):
-            self.time_to_infection = {  # i.e. incubation time
-                'mean': 3 * cycles_per_day,
-                'min': 0 * cycles_per_day
-                }
-            self.time_to_recovery = {
-                'mean': 14 * cycles_per_day,
-                'min': 0 * cycles_per_day
-                }
+            # i.e. incubation time
+            self.time_to_infection_mean = 3 * cycles_per_day
+            self.time_to_infection_min = 0 * cycles_per_day
+
+            self.time_to_recovery_mean = 14 * cycles_per_day
+            self.time_to_recovery_min = 0 * cycles_per_day
 
             self.probability_of_symptoms = 0.30
-            self.symptoms_rate = (self.probability_of_symptoms / (1 - self.probability_of_symptoms)) / self.time_to_recovery['mean']
+            self.symptoms_rate = (self.probability_of_symptoms / (1 - self.probability_of_symptoms)) / self.time_to_recovery_mean
 
             self.probability_of_death_given_symptoms = 0.0005
-            self.death_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery['mean']
-            #self.probability_of_death_given_symptoms * self.symptoms_rate * (self.symptoms_rate + self.time_to_recovery['mean']) / (((1 - self.probability_of_death_given_symptoms) * self.symptoms_rate) - (self.probability_of_death_given_symptoms * self.time_to_recovery['mean']))
+            self.death_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery_mean
+            #self.probability_of_death_given_symptoms * self.symptoms_rate * (self.symptoms_rate + self.time_to_recovery_mean) / (((1 - self.probability_of_death_given_symptoms) * self.symptoms_rate) - (self.probability_of_death_given_symptoms * self.time_to_recovery_mean))
                               
-            self.beta = r0 * ((1 / self.time_to_recovery['mean']) + self.symptoms_rate)
+            self.beta = r0 * ((1 / self.time_to_recovery_mean) + self.symptoms_rate)
             self.transmission_rate = self.beta / mean_node_degree
 
         else:
@@ -261,30 +259,26 @@ class Node:
             keys = args.keys()
 
             # incubation rate
-            if(any(key in keys for key in ['cycles_per_day', 'time_to_infection'])):
-                self.time_to_infection = {
-                    'mean': self.time_to_infection['mean'] * cycles_per_day,
-                    'min': self.time_to_infection['min'] * cycles_per_day
-                }
+            if(any(key in keys for key in ['cycles_per_day', 'time_to_infection_mean', 'time_to_infection_min'])):
+                self.time_to_infection_mean = self.time_to_infection_mean * cycles_per_day
+                self.time_to_infection_min = self.time_to_infection_min * cycles_per_day
 
             # recovery rate
-            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery'])):
-                self.time_to_recovery = {
-                    'mean': self.time_to_recovery['mean'] * cycles_per_day,
-                    'min': self.time_to_recovery['min'] * cycles_per_day
-                }
+            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min'])):
+                self.time_to_recovery_mean = self.time_to_recovery_mean * cycles_per_day
+                self.time_to_recovery_min = self.time_to_recovery_min * cycles_per_day
 
             # symptoms rate
-            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery', 'probability_of_symptoms'])):
-                self.symptoms_rate = (self.probability_of_symptoms / (1 - self.probability_of_symptoms)) / self.time_to_recovery['mean']
+            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'probability_of_symptoms'])):
+                self.symptoms_rate = (self.probability_of_symptoms / (1 - self.probability_of_symptoms)) / self.time_to_recovery_mean
 
             # death rate
-            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery', 'probability_of_death_given_symptoms'])):
-                self.death_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery['mean']
+            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'probability_of_death_given_symptoms'])):
+                self.death_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery_mean
 
             # transmission rate
-            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery', 'probability_of_symptoms', 'r0'])):
-                self.beta = r0 * ((1 / self.time_to_recovery['mean']) + self.symptoms_rate)
+            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'probability_of_symptoms', 'r0'])):
+                self.beta = r0 * ((1 / self.time_to_recovery_mean) + self.symptoms_rate)
                 self.transmission_rate = self.beta / mean_node_degree
 
         # Pass params to corresponding Test object
@@ -292,8 +286,11 @@ class Node:
 
     def get_parameters(self, all = False):
         params = {
-            'time_to_infection': self.time_to_infection,
-            'time_to_recovery': self.time_to_recovery,
+            'time_to_infection_mean': self.time_to_infection_mean,
+            'time_to_infection_min': self.time_to_infection_min,
+
+            'time_to_recovery_mean': self.time_to_recovery_mean,
+            'time_to_recovery_min': self.time_to_recovery_min,
 
             'probability_of_symptoms': self.probability_of_symptoms,
             'symptoms_rate': self.symptoms_rate,
@@ -318,13 +315,13 @@ class Node:
         self.state = 'exposed'
 
         # Pull from geometric distribution with mean = `time_to_infection`
-        self.state_time = geometric_by_mean(self.rng, self.time_to_infection['mean'], self.time_to_infection['min'])
+        self.state_time = geometric_by_mean(self.rng, self.time_to_infection_mean, self.time_to_infection_min)
 
     def get_infected(self):
         self.state = 'infected asymptomatic'
 
         # Pull from geometric distribution with mean = `time_to_recovery`
-        self.state_time = geometric_by_mean(self.rng, self.time_to_recovery['mean'], self.time_to_recovery['min'])
+        self.state_time = geometric_by_mean(self.rng, self.time_to_recovery_mean, self.time_to_recovery_min)
 
     def update(self, rng, global_time):
         '''Runs once per cycle per node, updating a node based on it's state.
@@ -338,7 +335,7 @@ class Node:
             self.state_time -= 1
 
         # Update test properties
-        self.test.update(global_time, self.time_to_recovery)
+        self.test.update(global_time, self.time_to_recovery_mean)
 
         # States that don't do anything (this will probably save on runtime)
         # susceptible/recovered/dead
@@ -395,12 +392,12 @@ class Node:
                 if(self.index_case == True):
                     self.nodes_infected += 1
 
-    def quarantine(self, time_to_recovery):
+    def quarantine(self, time_to_recovery_mean):
         '''If a node receives a positive test result, they will quarantine
         for a mean time of `14` (geometric distribution).
         '''
         # Pull from geometric distribution, mean recovery time = 14
-        self.quarantine_time = time_to_recovery['mean'] #geometric_by_mean(self.rng, time_to_recovery)
+        self.quarantine_time = time_to_recovery_mean #geometric_by_mean(self.rng, time_to_recovery)
         # TODO(jordan): Ask Dr. Fine how long people are put in quarantine for
         # * min. 14 days no matter what? (implemented)
         # * until symptoms subside?

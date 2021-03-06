@@ -3,7 +3,7 @@
 # Created: 02/19/2021
 # Author: Aidan Tokarski (astoka21@colby.edu)
 # -----
-# Last Modified: 03/04/2021
+# Last Modified: 03/06/2021
 # Modified By: Jordan Williams
 ###
 
@@ -74,7 +74,7 @@ class UIController(tk.Tk):
         sim = self.generate_sim()
         sim.run()
         self.frames[OutputPanel].plot_data(sim.data, sim.data['day'], sim.all_states)
-        self.export_data_to_file(sim)
+        #self.export_data_to_file(sim)
         log.info("R0: %.2f" % (sim.calculate_r0()))
 
     def generate_sim(self):
@@ -132,14 +132,13 @@ class UIModule(tk.Frame):
         self.row = row
         self.col = col
 
-    def add_param(self, name, text, default=None, root=None):
+    def add_param(self, name, text, default=None, root=None, entry_side = 'top', label_side='top'):
         # Declares a new param to be added to the interface
         var = tk.IntVar(self, value=default, name=name)
-        entry = tk.Entry(root if (root != None) else self, bd=5, textvariable=var)
-        entry.pack(side='right')
         label = tk.Label(root if (root != None) else self, text=text)
-        label.pack(side='right')
-        self.params[name] = default
+        label.pack(side=label_side)
+        entry = tk.Entry(root if (root != None) else self, bd=5, textvariable=var)
+        entry.pack(side=entry_side)
 
     def get_params(self):
         for param in self.params:
@@ -149,15 +148,31 @@ class UIModule(tk.Frame):
 class ParameterPanel(UIModule):
     def __init__(self, root, controller):
         UIModule.__init__(self, root, controller, row=0, col=0)
-        '''
-        Currently implemented params:
-        time_horizon
-        initial_infected_count
-        exogenous_rate
-        '''
+        
+        self.add_param('initial_infected_count', 'Initial infection count', default=10)
+
+        self.add_param('cycles_per_day', 'Cycles per day', default=3)
         self.add_param('time_horizon', 'Days', default=100)
-        self.add_param('initial_infected_count', 'Initial Infection Count', default=10)
-        self.add_param('exogenous_rate', 'Weekly Exogenous Infections', default=10)
+
+        self.add_param('exogenous_amount', 'Exogenous amount', default=5)
+        self.add_param('exogenous_frequency', 'Exogenous frequency', default=5)
+        
+        self.add_param('r0', 'Basic reproduction number (R0)', default=1.5)
+        
+        self.add_param('time_to_infection_mean', 'Mean time to infection (incubation)', default=3)
+        self.add_param('time_to_infection_min', 'Min time to infection', default=0)
+
+        self.add_param('time_to_recovery_mean', 'Mean time to recovery', default=14)
+        self.add_param('time_to_recovery_min', 'Min time to recovery', default=0)
+        
+        self.add_param('probability_of_symptoms', 'Probability of symptoms', default=0.30)
+        self.add_param('probability_of_death_given_symptoms', 'Probability of death given symptoms', default=0.0005)
+        
+        self.add_param('specificity', 'Test specificity', default=0.997)
+        self.add_param('sensitivity', 'Test sensitivity', default=0.9)
+        self.add_param('cost', 'Test cost', default=25)
+        self.add_param('results_delay', 'Delay until test results', default=1)
+        self.add_param('rate', 'Rate of testing', default=0)
 
 class OutputPanel(UIModule):
     def __init__(self, root, controller):
@@ -220,13 +235,13 @@ class GraphGenerator(UIModule):
 
     def gen_frm_graph_gen_ring(self):
         frm_graph_gen_ring = tk.Frame(self)
-        self.add_param('node_degree', 'Neighbors Per Node', default=3, root=frm_graph_gen_ring)
+        self.add_param('node_degree', 'Neighbors Per Node', default=42, root=frm_graph_gen_ring)
         return frm_graph_gen_ring
 
     def gen_frm_graph_gen_ws(self):
         frm_graph_gen_ws = tk.Frame(self)
-        self.add_param('node_degree', 'Neighbors Per Node', default=3, root=frm_graph_gen_ws)
-        self.add_param('diameter_goal', 'Diameter Goal', default=42, root=frm_graph_gen_ws)
+        self.add_param('node_degree', 'Neighbors Per Node', default=42, root=frm_graph_gen_ws)
+        self.add_param('diameter_goal', 'Diameter Goal', default=3, root=frm_graph_gen_ws)
         self.add_param('rng', 'Generation Seed', default=0, root=frm_graph_gen_ws)
         return frm_graph_gen_ws
 
