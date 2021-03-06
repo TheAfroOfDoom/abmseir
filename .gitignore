@@ -31,3 +31,6 @@ tempCodeRunnerFile.py
 
 # Python cache files
 *.cpython*
+
+# VSCode meta files
+.vscode/
