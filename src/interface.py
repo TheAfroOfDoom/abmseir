@@ -24,7 +24,7 @@ class UIController(tk.Tk):
 
     def __init__(self):
         tk.Tk.__init__(self)
-        self.title('SWN-COV Beta v1.0.0')
+        self.title('SWN-COV Beta v1.0.1')
         self.resizable(0, 0)
         self.interface = self.create_interface()
         self.config(menu=self.gen_menu())
@@ -212,7 +212,7 @@ class GraphManager(UIModule):
 
 class GraphLoader(UIModule):
     def __init__(self, root, controller):
-        UIModule.__init__(self, root, controller, row=2, col=0)
+        UIModule.__init__(self, root, controller, row=0, col=2)
         btn_graph_select = tk.Button(self, text='Select Graph', command=self.btn_graph_select_cb)
         btn_graph_select.pack(side='left')
 
@@ -221,7 +221,7 @@ class GraphLoader(UIModule):
 
 class GraphGenerator(UIModule):
     def __init__(self, root, controller):
-        UIModule.__init__(self, root, controller, row=2, col=0)
+        UIModule.__init__(self, root, controller, row=0, col=2)
         self.frm_graph_gen_ring = self.gen_frm_graph_gen_ring()
         self.frm_graph_gen_ws = self.gen_frm_graph_gen_ws()
         self.add_param('population_size', 'Population', default=5000)
