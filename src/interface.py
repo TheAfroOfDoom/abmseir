@@ -16,6 +16,7 @@ matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import tkinter as tk
+from tkinter import ttk
 import tkinter.filedialog as tkfd
 import config
 
@@ -23,79 +24,39 @@ class UIController(tk.Tk):
 
     def __init__(self):
         tk.Tk.__init__(self)
-        self.interface = Interface(self)
+        self.interface = self.create_interface()
+        self.config(menu=self.gen_menu())
+        self.frames = self.load_frames()
+        self.show_frame(ParameterPanel)
+        self.show_frame(GraphManager)
+        self.show_frame(GraphLoader)
+        self.show_frame(OutputPanel)
 
-class UIModule(tk.Frame):
+    def create_interface(self):
+        interface = tk.Frame(self)
+        interface.pack(side="top", fill="both", expand = True)
+        return interface
 
-    def __init__(self, root):
-        tk.Frame.__init__(self, root)
-        self.params = {}
+    def load_frames(self):
+        frames = {}
 
-    def add_param(self, name, text, default=None):
-        # Declares a new param to be added to the interface
-        var = tk.IntVar(self, value=default, name=name)
-        entry = tk.Entry(self, bd=5, textvariable=var)
-        entry.pack(side='left')
-        label = tk.Label(self, text=text)
-        label.pack(side='left')
-        self.params[name] = default
+        for F in (ParameterPanel, GraphManager, GraphLoader, GraphGenerator, OutputPanel):
+            frame = F(self.interface, self)
+            frames[F] = frame
 
-    def get_params(self):
-        for param in self.params:
-            self.params[param] = int(self.getvar(param))
-        return self.params
+        return frames
 
-class Interface(UIModule):
-    def __init__(self, root):
-        UIModule.__init__(self, root)
-        self.graph_manager = GraphManager(self)
-        self.output_panel = OutputPanel(self)
-        self.menu = self.gen_menu()
-        root.config(menu=self.menu)
-        '''
-        Currently implemented params:
-        time_horizon
-        initial_infected_count
-        exogenous_rate
-        '''
+    def show_frame(self, wrapper):
+        frame = self.frames[wrapper]
+        frame.grid(row=frame.row, column=frame.col)
 
-    def simulate(self):
-        sim = self.generate_sim()
-        time_steps = [0]
-        for i in range(self.params['time_horizon']):
-            time_steps.append(i + 1)
-            sim.run_step()
-        self.output_panel.plot_data(sim.data, time_steps, sim.all_states)
-        self.export_data_to_file(sim)
-        log.info("R_0: %.2f" % (sim.calculate_r_0()))
-
-    def generate_sim(self):
-        sim = Simulation(self.load_graph())
-        log.info(self.params)
-        sim.update_parameters(self.get_params())    
-        sim.pre_step() # Initializes simulation
-        return sim
-        
-    def load_graph(self):
-        if int(self.getvar('graph_mode')) == 1:
-            return graph_handler.import_graph(path = self.graph_manager.graph_file_name)
-        else:
-            params = self.graph_manager.frm_graph_gen.get_params()
-            if self.graph_manager.frm_graph_gen.graph_type == 0:
-                # Complete
-                return graph_handler.import_graph(graph_type = 'complete',
-                            graph_args = [params['population_size']]
-                            )
-            elif self.graph_manager.frm_graph_gen.graph_type == 1:
-                # Ring
-                return graph_handler.import_graph(graph_type = 'ring',
-                            graph_args = [params['population_size'], params['node_degree']]
-                            )
-            elif self.graph_manager.frm_graph_gen.graph_type == 2:
-                # Watts-Strogatz
-                return graph_handler.import_graph(graph_type = 'wattsstrogatz',
-                            graph_args = [params['population_size'], params['node_degree'], params['diameter_goal'], params['rng']]
-                            )
+    def hide_frame(self, wrapper):
+        frame = self.frames[wrapper]
+        frame.grid_forget()
+    
+    def raise_frame(self, wrapper):
+        frame = self.frames[wrapper]
+        frame.tkraise()
 
     def gen_menu(self):
         menu = tk.Menu(self)
@@ -109,20 +70,51 @@ class Interface(UIModule):
         menu_file.add_command(label="Exit", command=self.quit)
         menu.add_cascade(label="File", menu=menu_file)
         return menu
-    
+
+    def simulate(self):
+        sim = self.generate_sim()
+        time_steps = [0]
+        for i in range(self.params['time_horizon']):
+            time_steps.append(i + 1)
+            sim.run_step()
+        self.frames[OutputPanel].plot_data(sim.data, time_steps, sim.all_states)
+        self.export_data_to_file(sim)
+        log.info("R_0: %.2f" % (sim.calculate_r_0()))
+
+    def generate_sim(self):
+        sim = Simulation(self.load_graph())
+        log.info(self.params)
+        sim.update_parameters(self.get_params())    
+        sim.pre_step() # Initializes simulation
+        return sim
+
     def btn_sim_cb(self):
         self.simulate()
 
+    def load_graph(self):
+        if int(self.getvar('graph_mode')) == 1:
+            return graph_handler.import_graph(path = self.frames[GraphManager].graph_file_name)
+        else:
+            params = self.frames[GraphGenerator].get_params()
+            if self.frames[GraphManager].graph_type == 0:
+                # Complete
+                return graph_handler.import_graph(graph_type = 'complete',
+                            graph_args = [params['population_size']]
+                            )
+            elif self.frames[GraphManager].graph_type == 1:
+                # Ring
+                return graph_handler.import_graph(graph_type = 'ring',
+                            graph_args = [params['population_size'], params['node_degree']]
+                            )
+            elif self.frames[GraphManager].graph_type == 2:
+                # Watts-Strogatz
+                return graph_handler.import_graph(graph_type = 'wattsstrogatz',
+                            graph_args = [params['population_size'], params['node_degree'], params['diameter_goal'], params['rng']]
+                            )
+        
     def create_window(self):
-        self.add_param('time_horizon', 'Days', default=100)
-        self.add_param('initial_infected_count', 'Initial Infection Count', default=10)
-        self.add_param('exogenous_rate', 'Weekly Exogenous Infections', default=10)
         btn_sim = tk.Button(self, text='Simulate', command=self.btn_sim_cb)
         btn_sim.pack(side=tk.BOTTOM)
-        self.graph_manager.pack()
-        #self.output_panel.pack(side=tk.RIGHT)
-        self.pack()
-        self.mainloop()
 
     def export_data_to_file(self, simulation):
         '''https://stackoverflow.com/a/19476284
@@ -141,9 +133,45 @@ class Interface(UIModule):
         f.write(simulation.export_data())
         f.close()
 
+class UIModule(tk.Frame):
+
+    def __init__(self, root, controller, row=0, col=0):
+        tk.Frame.__init__(self, root)
+        self.params = {}
+        self.controller = controller
+        self.row = row
+        self.col = col
+
+    def add_param(self, name, text, default=None):
+        # Declares a new param to be added to the interface
+        var = tk.IntVar(self, value=default, name=name)
+        entry = tk.Entry(self, bd=5, textvariable=var)
+        entry.pack(side='right')
+        label = tk.Label(self, text=text)
+        label.pack(side='right')
+        self.params[name] = default
+
+    def get_params(self):
+        for param in self.params:
+            self.params[param] = int(self.getvar(param))
+        return self.params
+
+class ParameterPanel(UIModule):
+    def __init__(self, root, controller):
+        UIModule.__init__(self, root, controller, row=0, col=0)
+        '''
+        Currently implemented params:
+        time_horizon
+        initial_infected_count
+        exogenous_rate
+        '''
+        self.add_param('time_horizon', 'Days', default=100)
+        self.add_param('initial_infected_count', 'Initial Infection Count', default=10)
+        self.add_param('exogenous_rate', 'Weekly Exogenous Infections', default=10)
+
 class OutputPanel(UIModule):
-    def __init__(self, root):
-        UIModule.__init__(self,root)
+    def __init__(self, root, controller):
+        UIModule.__init__(self, root, controller, row=0, col=1)
         self.create_graph_panel()
 
     def create_graph_panel(self):
@@ -160,41 +188,35 @@ class OutputPanel(UIModule):
 
 
 class GraphManager(UIModule):
-    def __init__(self, root):
-        UIModule.__init__(self, root)
+    def __init__(self, root, controller):
+        UIModule.__init__(self, root, controller, row=1, col=0)
         self.graph_file_name = None
-        self.frm_graph_load = self.gen_frm_graph_load()
-        self.frm_graph_gen = GraphGenerator(self)
         self.graph_mode = tk.IntVar(root, value=1, name='graph_mode')
-        frm_graph_mode = tk.Frame(root)
-        rbtn_graph_load = tk.Radiobutton(frm_graph_mode, text='Load Graph', command=self.rbtn_graph_load_cb, variable=self.graph_mode, value=1)
-        rbtn_graph_gen = tk.Radiobutton(frm_graph_mode, text='Generate Graph', command=self.rbtn_graph_gen_cb, variable=self.graph_mode, value=2)
+        rbtn_graph_load = tk.Radiobutton(self, text='Load Graph', command=self.rbtn_graph_load_cb, variable=self.graph_mode, value=1)
+        rbtn_graph_gen = tk.Radiobutton(self, text='Generate Graph', command=self.rbtn_graph_gen_cb, variable=self.graph_mode, value=2)
         rbtn_graph_load.pack(side='left')
         rbtn_graph_gen.pack(side='right')
-        frm_graph_mode.pack(side='bottom')
-        self.frm_graph_load.pack(side='bottom')
-        self.frm_graph_gen.pack(side='top')
 
-    def gen_frm_graph_load(self):
-        frm_graph_load = tk.Frame(self)
-        btn_graph_select = tk.Button(frm_graph_load, text='Select Graph', command=self.btn_graph_select_cb)
+    def rbtn_graph_load_cb(self):
+        self.controller.hide_frame(GraphGenerator)
+        self.controller.show_frame(GraphLoader)
+
+    def rbtn_graph_gen_cb(self):
+        self.controller.hide_frame(GraphLoader)
+        self.controller.show_frame(GraphGenerator)
+
+class GraphLoader(UIModule):
+    def __init__(self, root, controller):
+        UIModule.__init__(self, root, controller, row=2, col=3)
+        btn_graph_select = tk.Button(self, text='Select Graph', command=self.btn_graph_select_cb)
         btn_graph_select.pack(side='left')
-        return frm_graph_load
 
     def btn_graph_select_cb(self):
         self.graph_file_name = tkfd.askopenfilename(initialdir = config.settings['graph']['directory'])
 
-    def rbtn_graph_load_cb(self):
-        self.frm_graph_gen.pack_forget()
-        self.frm_graph_load.pack(side='bottom')
-
-    def rbtn_graph_gen_cb(self):
-        self.frm_graph_load.pack_forget()
-        self.frm_graph_gen.pack(side='bottom')
-
 class GraphGenerator(UIModule):
-    def __init__(self, root):
-        UIModule.__init__(self, root)
+    def __init__(self, root, controller):
+        UIModule.__init__(self, root, controller, row=2, col=0)
         self.frm_graph_gen_ring = self.gen_frm_graph_gen_ring()
         self.frm_graph_gen_ws = self.gen_frm_graph_gen_ws()
         self.graph_type = 0
@@ -236,4 +258,4 @@ class GraphGenerator(UIModule):
 
 if __name__ == '__main__':
     controller = UIController()
-    controller.interface.create_window()
+    controller.mainloop()
