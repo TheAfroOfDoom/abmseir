@@ -3,7 +3,7 @@
 # Created: 12/06/2020
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/03/2021
+# Last Modified: 03/06/2021
 # Modified By: Jordan Williams
 ###
 
@@ -78,6 +78,6 @@ if __name__ == '__main__':
 
     log.info("Saved simulation data from %d samples to '%s'" % (sample_size, path))
 
-    log.info('R0:              x = %.2f, s = %.2f' % (np.mean(r0s), np.std(r0s)))
+    log.info('R0:               x = %.2f, s = %.2f' % (np.mean(r0s), np.std(r0s)))
     log.info('Total Infected:   x = %.2f, s = %.2f' % (np.mean(total_infecteds), np.std(total_infecteds)))
 #    log.info('R0s:      %s' % (r0s))

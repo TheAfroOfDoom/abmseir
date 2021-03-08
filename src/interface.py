@@ -3,7 +3,7 @@
 # Created: 02/19/2021
 # Author: Aidan Tokarski (astoka21@colby.edu)
 # -----
-# Last Modified: 03/06/2021
+# Last Modified: 03/08/2021
 # Modified By: Jordan Williams
 ###
 
@@ -15,6 +15,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import ttk
 import tkinter.filedialog as tkfd
@@ -74,7 +75,7 @@ class UIController(tk.Tk):
         sim = self.generate_sim()
         sim.run()
         self.frames[OutputPanel].plot_data(sim.data, sim.data['day'], sim.all_states)
-        #self.export_data_to_file(sim)
+        self.export_data_to_file(sim)
         log.info("R0: %.2f" % (sim.calculate_r0()))
 
     def generate_sim(self):
@@ -87,7 +88,7 @@ class UIController(tk.Tk):
 
     def load_graph(self):
         if int(self.getvar('graph_mode')) == 1:
-            return graph_handler.import_graph(path = self.frames[GraphManager].graph_file_name)
+            return graph_handler.import_graph(path = self.frames[GraphLoader].graph_file_name)
         else:
             params = self.frames[GraphGenerator].get_params()
             if self.frames[GraphGenerator].graph_type == 0:
@@ -124,7 +125,6 @@ class UIController(tk.Tk):
         f.close()
 
 class UIModule(tk.Frame):
-
     def __init__(self, root, controller, row=0, col=0):
         tk.Frame.__init__(self, root, relief=tk.RAISED, borderwidth=1)
         self.params = {}
@@ -180,7 +180,7 @@ class OutputPanel(UIModule):
         self.create_graph_panel()
 
     def create_graph_panel(self):
-        f = Figure(figsize=(5,5), dpi=100)
+        f = plt.figure(figsize=(5,5), dpi=100)
         self.output_graph = f.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(f, self)
         self.canvas.get_tk_widget().pack(side=tk.RIGHT, expand=True)
@@ -224,39 +224,65 @@ class GraphGenerator(UIModule):
         UIModule.__init__(self, root, controller, row=0, col=2)
         self.frm_graph_gen_ring = self.gen_frm_graph_gen_ring()
         self.frm_graph_gen_ws = self.gen_frm_graph_gen_ws()
+
+        self.graph_type = tk.StringVar()
+        rbtn_graph_complete = tk.Radiobutton(
+                                    self,
+                                    text='Complete',
+                                    variable=self.graph_type,
+                                    value='complete',
+                                    command=self.lbox_graph_gen_type_cb
+                                )
+        rbtn_graph_complete.pack(anchor=tk.W, side='top')
+        rbtn_graph_complete.select()
+
+        rbtn_graph_ring = tk.Radiobutton(
+                                    self,
+                                    text='Ring',
+                                    variable=self.graph_type,         
+                                    value='ring',
+                                    command=self.lbox_graph_gen_type_cb,
+                                    state=tk.NORMAL
+                                )
+        rbtn_graph_ring.pack(anchor=tk.W, side='top')
+        rbtn_graph_ring.deselect()
+
+        rbtn_graph_wattsstrogatz = tk.Radiobutton(
+                                    self,
+                                    text='Watts-Strogatz',
+                                    variable=self.graph_type,
+                                    value='wattsstrogatz',
+                                    command=self.lbox_graph_gen_type_cb,
+                                    state=tk.NORMAL
+                                )
+        rbtn_graph_wattsstrogatz.pack(anchor=tk.W, side='top')
+        rbtn_graph_wattsstrogatz.deselect()
+
         self.add_param('population_size', 'Population', default=5000)
-        self.graph_type = 0
-        lbox_graph_gen_type = tk.Listbox(self, height=3, name='lbox_graph_gen_type')
-        lbox_graph_gen_type.insert(1, 'Complete')
-        lbox_graph_gen_type.insert(2, 'Ring')
-        lbox_graph_gen_type.insert(3, 'Watts-Strogatz')
-        lbox_graph_gen_type.bind('<<ListboxSelect>>', self.lbox_graph_gen_type_cb)
-        lbox_graph_gen_type.pack()
 
     def gen_frm_graph_gen_ring(self):
         frm_graph_gen_ring = tk.Frame(self)
-        self.add_param('node_degree', 'Neighbors Per Node', default=42, root=frm_graph_gen_ring)
+        self.add_param('node_degree', 'Neighbors per node', default=42, root=frm_graph_gen_ring)
         return frm_graph_gen_ring
 
     def gen_frm_graph_gen_ws(self):
         frm_graph_gen_ws = tk.Frame(self)
-        self.add_param('node_degree', 'Neighbors Per Node', default=42, root=frm_graph_gen_ws)
-        self.add_param('diameter_goal', 'Diameter Goal', default=3, root=frm_graph_gen_ws)
-        self.add_param('rng', 'Generation Seed', default=0, root=frm_graph_gen_ws)
+        self.add_param('node_degree', 'Neighbors per node', default=42, root=frm_graph_gen_ws)
+        self.add_param('diameter_goal', 'Diameter goal', default=3, root=frm_graph_gen_ws)
+        self.add_param('rng', 'Random seed', default=0, root=frm_graph_gen_ws)
         return frm_graph_gen_ws
 
-    def lbox_graph_gen_type_cb(self, event):
-        type = self.children['lbox_graph_gen_type'].curselection()[0]
-        self.graph_type = type
-        if(type == 0):
+    def lbox_graph_gen_type_cb(self):
+        graph_type = self.graph_type.get()
+        if(graph_type == 'complete'):
             # Complete
             self.frm_graph_gen_ring.pack_forget()
             self.frm_graph_gen_ws.pack_forget()
-        elif(type == 1):
+        elif(graph_type == 'ring'):
             # Ring
             self.frm_graph_gen_ws.pack_forget()
             self.frm_graph_gen_ring.pack()
-        elif(type == 2):
+        elif(graph_type == 'wattsstrogatz'):
             # Watts-Strogatz
             self.frm_graph_gen_ring.pack_forget()
             self.frm_graph_gen_ws.pack()
