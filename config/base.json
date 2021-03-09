@@ -30,6 +30,7 @@
                 ]
             },
             "wattsstrogatz": {
+                "title": "Watts-Strogatz",
                 "random": "true",
                 "properties": [
                     {

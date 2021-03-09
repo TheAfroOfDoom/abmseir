@@ -20,6 +20,7 @@ import tkinter as tk
 from tkinter import ttk
 import tkinter.filedialog as tkfd
 import config
+import re
 
 class UIController(tk.Tk):
 
@@ -30,10 +31,10 @@ class UIController(tk.Tk):
         self.interface = self.create_interface()
         self.config(menu=self.gen_menu())
         self.frames = self.load_frames()
-        self.show_frame(ParameterPanel)
-        self.show_frame(GraphManager)
-        self.show_frame(GraphLoader)
-        self.show_frame(OutputPanel, tk.E)
+        self.show_frame(ParameterPanel, tk.NW)
+        self.show_frame(GraphManager, tk.NW)
+        self.show_frame(GraphLoader, tk.NW)
+        self.show_frame(OutputPanel, tk.NE)
         btn_sim = tk.Button(self, text='Simulate', command=self.btn_sim_cb)
         btn_sim.pack(side=tk.BOTTOM)
 
@@ -91,17 +92,17 @@ class UIController(tk.Tk):
             return graph_handler.import_graph(path = self.frames[GraphLoader].graph_file_name)
         else:
             params = self.frames[GraphGenerator].get_params()
-            if self.frames[GraphGenerator].graph_type == 0:
+            if self.frames[GraphGenerator].graph_type == 'complete':
                 # Complete
                 return graph_handler.import_graph(graph_type = 'complete',
                             graph_args = [params['population_size']]
                             )
-            elif self.frames[GraphGenerator].graph_type == 1:
+            elif self.frames[GraphGenerator].graph_type == 'ring':
                 # Ring
                 return graph_handler.import_graph(graph_type = 'ring',
                             graph_args = [params['population_size'], params['node_degree']]
                             )
-            elif self.frames[GraphGenerator].graph_type == 2:
+            elif self.frames[GraphGenerator].graph_type == 'wattsstrogatz':
                 # Watts-Strogatz
                 return graph_handler.import_graph(graph_type = 'wattsstrogatz',
                             graph_args = [params['population_size'], params['node_degree'], params['diameter_goal'], params['rng']]
@@ -204,11 +205,11 @@ class GraphManager(UIModule):
 
     def rbtn_graph_load_cb(self):
         self.controller.hide_frame(GraphGenerator)
-        self.controller.show_frame(GraphLoader)
+        self.controller.show_frame(GraphLoader, tk.NW)
 
     def rbtn_graph_gen_cb(self):
         self.controller.hide_frame(GraphLoader)
-        self.controller.show_frame(GraphGenerator)
+        self.controller.show_frame(GraphGenerator, tk.NW)
 
 class GraphLoader(UIModule):
     def __init__(self, root, controller):
@@ -222,70 +223,59 @@ class GraphLoader(UIModule):
 class GraphGenerator(UIModule):
     def __init__(self, root, controller):
         UIModule.__init__(self, root, controller, row=0, col=2)
-        self.frm_graph_gen_ring = self.gen_frm_graph_gen_ring()
-        self.frm_graph_gen_ws = self.gen_frm_graph_gen_ws()
+        graph_definitions = config.settings['graph']['definitions'].items()
+        self.frms_graph_gen = {}
 
         self.graph_type = tk.StringVar()
-        rbtn_graph_complete = tk.Radiobutton(
-                                    self,
-                                    text='Complete',
-                                    variable=self.graph_type,
-                                    value='complete',
-                                    command=self.lbox_graph_gen_type_cb
-                                )
-        rbtn_graph_complete.pack(anchor=tk.W, side='top')
-        rbtn_graph_complete.select()
+        self.rbtns = {}
+        for graph_type, definition in graph_definitions:
+            # Capitalize (CamelCase) graph type
+            graph_title = definition.get('title') or graph_type.title().replace('_', ' ')
 
-        rbtn_graph_ring = tk.Radiobutton(
-                                    self,
-                                    text='Ring',
-                                    variable=self.graph_type,         
-                                    value='ring',
-                                    command=self.lbox_graph_gen_type_cb,
-                                    state=tk.NORMAL
-                                )
-        rbtn_graph_ring.pack(anchor=tk.W, side='top')
-        rbtn_graph_ring.deselect()
+            # Make graph type's frame
+            self.frms_graph_gen[graph_type] = eval('self.gen_frm_graph_gen_%s()' % (graph_type))
 
-        rbtn_graph_wattsstrogatz = tk.Radiobutton(
-                                    self,
-                                    text='Watts-Strogatz',
-                                    variable=self.graph_type,
-                                    value='wattsstrogatz',
-                                    command=self.lbox_graph_gen_type_cb,
-                                    state=tk.NORMAL
-                                )
-        rbtn_graph_wattsstrogatz.pack(anchor=tk.W, side='top')
-        rbtn_graph_wattsstrogatz.deselect()
+            # Make radio button
+            self.rbtns[graph_type] = tk.Radiobutton(
+                            self,
+                            text=graph_title,
+                            variable=self.graph_type,
+                            value=graph_type,
+                            command=self.lbox_graph_gen_type_cb
+                        )
+            rbtn_graph = self.rbtns[graph_type]
+            rbtn_graph.pack(anchor=tk.W, side='top')
 
-        self.add_param('population_size', 'Population', default=5000)
+        # By default, select 'complete' radio button
+        self.rbtns['complete'].invoke()
+
+    def gen_frm_graph_gen_complete(self):
+        frm_graph_gen_complete = tk.Frame(self)
+        self.add_param('population_size', 'Population', default=5000, root=frm_graph_gen_complete)
+        return frm_graph_gen_complete
 
     def gen_frm_graph_gen_ring(self):
         frm_graph_gen_ring = tk.Frame(self)
+        self.add_param('population_size', 'Population', default=5000, root=frm_graph_gen_ring)
         self.add_param('node_degree', 'Neighbors per node', default=42, root=frm_graph_gen_ring)
         return frm_graph_gen_ring
 
-    def gen_frm_graph_gen_ws(self):
-        frm_graph_gen_ws = tk.Frame(self)
-        self.add_param('node_degree', 'Neighbors per node', default=42, root=frm_graph_gen_ws)
-        self.add_param('diameter_goal', 'Diameter goal', default=3, root=frm_graph_gen_ws)
-        self.add_param('rng', 'Random seed', default=0, root=frm_graph_gen_ws)
-        return frm_graph_gen_ws
+    def gen_frm_graph_gen_wattsstrogatz(self):
+        frm_graph_gen_wattsstrogatz = tk.Frame(self)
+        self.add_param('population_size', 'Population', default=5000, root=frm_graph_gen_wattsstrogatz)
+        self.add_param('node_degree', 'Neighbors per node', default=42, root=frm_graph_gen_wattsstrogatz)
+        self.add_param('diameter_goal', 'Diameter goal', default=3, root=frm_graph_gen_wattsstrogatz)
+        self.add_param('rng', 'Random seed', default=0, root=frm_graph_gen_wattsstrogatz)
+        return frm_graph_gen_wattsstrogatz
 
     def lbox_graph_gen_type_cb(self):
-        graph_type = self.graph_type.get()
-        if(graph_type == 'complete'):
-            # Complete
-            self.frm_graph_gen_ring.pack_forget()
-            self.frm_graph_gen_ws.pack_forget()
-        elif(graph_type == 'ring'):
-            # Ring
-            self.frm_graph_gen_ws.pack_forget()
-            self.frm_graph_gen_ring.pack()
-        elif(graph_type == 'wattsstrogatz'):
-            # Watts-Strogatz
-            self.frm_graph_gen_ring.pack_forget()
-            self.frm_graph_gen_ws.pack()
+        # Unpack all graph gen frames
+        for graph_type, frm_graph_gen in self.frms_graph_gen.items():
+            frm_graph_gen.pack_forget()
+
+        graph_type = self.graph_type.get()        
+        # Repack the one we want
+        self.frms_graph_gen[graph_type].pack()
 
 if __name__ == '__main__':
     controller = UIController()
