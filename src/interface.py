@@ -3,7 +3,7 @@
 # Created: 02/19/2021
 # Author: Aidan Tokarski (astoka21@colby.edu)
 # -----
-# Last Modified: 03/11/2021
+# Last Modified: 03/25/2021
 # Modified By: Jordan Williams
 ###
 
@@ -27,7 +27,7 @@ class UIController(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
         self.title('SWN-COV Beta v1.0.1')
-        self.resizable(0, 0)
+        #self.resizable(False, False)
         self.interface = self.create_interface()
         self.config(menu=self.gen_menu())
         self.frames = self.load_frames()
