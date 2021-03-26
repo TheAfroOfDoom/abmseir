@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/25/2021
+# Last Modified: 02/19/2021
 # Modified By: Jordan Williams
 ###
 
@@ -14,6 +14,7 @@ Rotates the pre-existing latest.log into a log with its file name representing i
 
 # Packages
 import datetime
+import itertools
 import logging
 import os
 import platform
@@ -30,6 +31,16 @@ def create_new_latest_log(path):
 
     f.close()
 
+
+def unique_file(basename, ext):
+    '''https://stackoverflow.com/a/33691348/13789724
+    '''
+    actualname = "%s.%s" % (basename, ext)
+    c = itertools.count()
+    while os.path.exists(actualname):
+        actualname = "%s_%d.%s" % (basename, next(c), ext)
+    return(actualname)
+
 def rotate_latest_log(path):
     os_stats = os.stat(path + 'latest.log')
     if  (platform.system() == 'Windows'):
@@ -42,14 +53,11 @@ def rotate_latest_log(path):
     else:
         logging.error('platform.system() not identified: %s' % (platform.system()))
 
-    try:
-        # Rename old latest.log to <creation_date>.log (YYYY-MM-DDTHHmmss)
-        os.rename(path + 'latest.log', '%s%s.log' % (path, creation_time.strftime('%Y-%m-%dT%H%M%S')))
-    except FileExistsError as e:
-        # TODO(jordan): If log file already exists with same name (in the same second), name the new file to <creation_time>_<index>.log
-        # where <index> is 1, 2, 3, ...
-        raise e
-        pass
+    creation_time_formatted = creation_time.strftime('%Y-%m-%dT%H%M%S')
+    file_name = unique_file(path + creation_time_formatted, 'log')
+    
+    # Rename old latest.log to <creation_date>.log (YYYY-MM-DDTHHmmss)
+    os.rename(path + 'latest.log', file_name)
 
     # New latest.log
     create_new_latest_log(path)

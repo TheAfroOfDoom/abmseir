@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/25/2021
+# Last Modified: 02/21/2021
 # Modified By: Jordan Williams
 ###
 
@@ -23,7 +23,7 @@ settings = None
 def load(s = "load"):
     try:
         global settings
-        fp = open('./config.json', 'r+')
+        fp = open('./config/base.json', 'r+')
         settings = json.load(fp)
         log.info("Config successfully " + s + "ed.")
     except (IOError, OSError) as e:

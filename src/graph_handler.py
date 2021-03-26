@@ -3,12 +3,12 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/29/2021
+# Last Modified: 03/25/2021
 # Modified By: Jordan Williams
 ###
 
 """
-Reads a graph file (`*.edgelist`) from the configured directory according to parameters
+Reads a graph file (`*.adjlist`) from the configured directory according to parameters
 if it exists, or generates and writes a new one if not.
 """
 
@@ -19,12 +19,13 @@ from log_handler import logging as log
 # Packages
 import networkx as nx
 import numpy as np
+import os
 import random
 import re
 import time
 import timeit
 
-g = []
+from pathlib import Path
 
 def complete_graph(args):
     '''Connects each of n nodes to every other node.
@@ -39,6 +40,22 @@ def complete_graph(args):
         for i in range(j + 1, n):
             g.add_edge(j, i)
     return(g)
+
+def ring_graph(args):
+    '''A graph where each vertex has the same number of neighbors;
+    i.e. every vertex has the same degree or valency.
+    https://en.wikipedia.org/wiki/Regular_graph
+    '''
+    # Unpack args
+    n = args[0]
+    k = args[1]
+
+    ring_graph = nx.Graph()
+    for x in range(n):
+        for y in range(k // 2): # TODO(jordan): This will only give even-valued degrees
+            ring_graph.add_edge(x, (x + y + 1) % n)
+
+    return(ring_graph)
 
 def wattsstrogatz_graph(args):
     '''Decent small-world model with low diameter and high clustering.
@@ -56,40 +73,39 @@ def wattsstrogatz_graph(args):
     g = nx.Graph()
     # Keep track of what edges we will randomly choose from.
     # Start with a complete list of all possible edges.
+    log.info("Watts-Strogatz generation requires a complete graph.")
     remaining_edges = import_graph('complete', [n])
 
-    # Generate a regular lattice with n nodes, k neighbors
-    regular_lattice = nx.Graph()
-    for x in range(n):
-        for y in range(k // 2): # FIXME(jordan): This will only give even-valued degrees
-            regular_lattice.add_edge(x, (x + y + 1) % n)
+    # Generate a ring graph with n nodes, k neighbors
+    log.info("Watts-Strogatz generation requires a ring graph.")
+    ring_graph = import_graph('ring', [n, k])
 
-    # Remove the regular lattice edges from our complete set of remaining edges to choose from
-    remaining_edges.remove_edges_from(regular_lattice.edges())
+    # Remove the ring graph edges from our complete set of remaining edges to choose from
+    remaining_edges.remove_edges_from(ring_graph.edges())
     remaining_edges = np.asarray(remaining_edges.edges()).tolist()
 
-    # Clone the regular_lattice to a separate, independent graph g
-    g = nx.compose(g, regular_lattice)
-    regular_lattice = np.asarray(regular_lattice.edges()).tolist()
+    # Clone the ring_graph to a separate, independent graph g
+    g = nx.compose(g, ring_graph)
+    ring_graph = np.asarray(ring_graph.edges()).tolist()
 
     # Initializations for edge count statistics
     edges_rewired_count = 0
-    edges_total = len(regular_lattice)
+    edges_total = len(ring_graph)
 
     current_diameter = nx.diameter(g)
     edges_last_recalculation = 0
     # While the diameter is bigger than our goal...
     while current_diameter > diameter_goal:
-        # Choose one random edge from our regular lattice to replace with one random edge from our list of remaining edges
+        # Choose one random edge from our ring graph to replace with one random edge from our list of remaining edges
         choice = random.choice(remaining_edges)
-        edge_removed = random.choice(regular_lattice)
+        edge_removed = random.choice(ring_graph)
 
         # Replace the edge in our graph g
         g.remove_edge(edge_removed[0], edge_removed[1])
         g.add_edge(choice[0], choice[1])
 
         # Remove the randomly chosen edges from our lists so we don't pick them again
-        regular_lattice.remove(edge_removed)
+        ring_graph.remove(edge_removed)
         remaining_edges.remove(choice)
 
         # Increment edges-rewired count
@@ -132,8 +148,9 @@ def build_file_name(graph_type = None, args = None, rng = None):
     if(args is None):
         args = config.settings['graph']['active']['properties']
 
-    # Initialize name string with the graph_type
-    name = graph_type
+    # Initialize name string with the graph_type dir and graph_type
+    # e.g.: `complete/complete`
+    name = '{0}/{0}'.format(graph_type)
 
     # Iterate through each of the graph's properties and append its value
     # e.g.: "wattsstrogatz_n1500_k43_d3_rng0"
@@ -151,40 +168,53 @@ def build_file_name(graph_type = None, args = None, rng = None):
 
     return(name)
 
-def import_graph(graph_type = None, graph_args = None, rng = None):
-    '''Reads a graph file (`*.edgelist`) from the configured directory according to parameters if it exists,
+def import_graph(graph_type = None, graph_args = None, rng = None, path = None):
+    '''Reads a graph file (`*.adjlist`) from the configured directory according to parameters if it exists,
     or generates and writes a new one if not.
     '''
-    # Read graph type from config as lowercase, stripping non-alphanumeric characters
-    # (if no specific graph type is specified)
-    if(graph_type is None):
-        graph_type = re.sub(r'[\W_]+', '', config.settings['graph']['active']['type']).lower()
 
-    # Ensure graph_type is valid (exists in graph definitions in config)
-    try:
-        graph_definition = config.settings['graph']['definitions'][graph_type]
-    except Exception as e:
-        log.error('Invalid graph type provided in config: not defined.')
-        log.exception(e)
-        raise e
+    if(path is None):
+        # Read graph type from config as lowercase, stripping non-alphanumeric characters
+        # (if no specific graph type is specified)
+        if(graph_type is None):
+            graph_type = re.sub(r'[\W_]+', '', config.settings['graph']['active']['type']).lower()
 
-    # If graph has an element of randomness and rng is not specified, generate a new seed
-    if(graph_definition['random'].lower() == 'true'
-        and rng is None):
-        rng = int(1000 * time.time()) % 2**32
+        # Ensure graph_type is valid (exists in graph definitions in config)
+        try:
+            graph_definition = config.settings['graph']['definitions'][graph_type]
+        except Exception as e:
+            log.error('Invalid graph type provided in config: not defined.')
+            log.exception(e)
+            raise e
 
-    # Build graph args from config (if none are specified)
-    if(graph_args is None):
-        graph_args = config.settings['graph']['active']['properties']
+        # If graph has an element of randomness and rng is not specified, generate a new seed
+        if(graph_definition['random'].lower() == 'true'
+            and rng is None):
+            rng = 0# int(1000 * time.time()) % 2**32
+
+        # Build graph args from config (if none are specified)
+        if(graph_args is None):
+            graph_args = config.settings['graph']['active']['properties']
+            
+        # Build graph file name string
+        file_name = build_file_name(graph_type, graph_args, rng)
+
+        # Read from file if it exists
+        path = config.settings['graph']['directory'] + file_name
         
-    # Build graph file name string
-    file_name = build_file_name(graph_type, graph_args, rng)
+        head, tail = os.path.split(path)
+        file_name = tail
 
-    # Read from file if it exists
-    path = './' + config.settings['graph']['directory'] + file_name
+    # If path is provided...
+    else:
+        # Set file name
+        # https://stackoverflow.com/a/8384786
+        head, tail = os.path.split(path)
+        file_name = tail
+        
+    log.info("Trying to read graph from '%s'..." % (path))
     try:
-        log.info("Attempting to read graph from '%s'..." % (path))
-        g = nx.read_edgelist(path, nodetype = int)
+        g = nx.read_adjlist(path, nodetype = int)
         log.info("Graph successfully read from '%s'..." % (path))
     except:
         log.info("Failed to read graph from '%s'. Generating..." % (path))
@@ -197,16 +227,22 @@ def import_graph(graph_type = None, graph_args = None, rng = None):
         # Generate graph structure
         t0 = timeit.default_timer()
         try:
-            g = eval('%s_graph(%s)' % (graph_type, graph_args))
+            g = eval('%s_graph(%s)' % (graph_type, graph_args)) # TODO(jordan): Add aliases for graph types (e.g., ring = regular lattice, complete = full)
         except Exception as e:
             log.exception('Graph generation failed.')
             log.exception(e)
             raise e
         t1 = timeit.default_timer()
 
+        # Ensure graph_type dir exists
+        Path('./%s/%s' % (config.settings['graph']['directory'], graph_type)).mkdir(exist_ok = True)
+
         # Save graph to file
-        nx.write_edgelist(g, path)
+        nx.write_adjlist(g, path)
         log.info("Wrote new graph to '%s' (took %.6fs)." % (path, t1 - t0))
+
+    # Give descriptive name to graph
+    g.name = file_name[:-1 * len(config.settings['graph']['extension'])]
 
     # Return graph to caller function
     return(g)

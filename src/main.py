@@ -3,7 +3,7 @@
 # Created: 12/06/2020
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 01/26/2021
+# Last Modified: 03/11/2021
 # Modified By: Jordan Williams
 ###
 
@@ -16,144 +16,88 @@ Modelling the Spread of SARS-CoV-2 at UMass Dartmouth using Small World Networks
 """
 
 # Modules
-import config
 import log_handler
 import graph_handler
+from simulation import Simulation
 
 # Packages
-import matplotlib.pyplot as plt
-import networkx as nx
+import datetime
 import numpy as np
-import os
 import pandas as pd
-import random
-import re
-import seaborn as sns
-import sys
+import pprint
 
-# Initialize logging object
-log = log_handler.logging
-
-# Import active graph defined in config
-g = graph_handler.import_graph()
-
-### PUSH just to get some updated code to git (not fully modular yet)
-'''
-# Graph config settings
-active_graph_count = config.settings['graph']['active']['count']
-
-graph_directory = config.settings['graph']['directory']
-graph_extension = config.settings['graph']['extension']
-graph_file_name_pattern = graph_handler.build_file_name().replace(graph_extension, '[\w]*%s' % (graph_extension))
-
-# Prepare list of active graphs to iterate through
-active_graph_files = [f for f in os.listdir('./' + graph_directory)
-                        if re.match(r'^%s$' % (graph_file_name_pattern), f)]
-'''
-
-'''
-# TODO(jordan): Need to bring this into `graph_handler.py` and make it grab the required number of graphs specified in config, and generate more if there aren't enough.
-active_graphs = []
-
-for i in range(active_graph_count):
-
-# Iterate through the active graphs
-for g in active_graphs:
+if __name__ == '__main__':
+    # Initialize logging object
+    log = log_handler.logging
 
     # Import the active graph
     g = graph_handler.import_graph()
 
     # Run simulation on current active graph
-'''
+    simulation = Simulation(g)
+    time = datetime.datetime.now().strftime('%Y-%m-%dT%H%M%S')
+    default_extension = '.csv'
+    path = './output/data/simulation_%s_%s' % (time, simulation.graph.name + default_extension)
 
-SAMPLE_SIZE = 50
+    # Write simulation params to header comment
+    pp = pprint.PrettyPrinter(indent = 4)
+    file = open(path, 'a')
+    file.write('# %s\n' % ('\n# '.join((pp.pformat(simulation.get_parameters(all = True)) + '\n\n').split('\n'))))
+    file.close()
 
-def plotGraphs(testRates, caseTypes):
-    fig, axs = plt.subplots(nrows = len(testRates), ncols = len(caseTypes))
-    # Each row is a test rate (least-often to most-often)
-    for i, testRate in enumerate(reversed(testRates)):
-        if(len(caseTypes) > 1):
-            # Each column is a case (best, base, worst)
-            for j, caseType in enumerate(caseTypes):
-                ax = axs[i, j]
+    # Write simulation columns to header
+    simulation.data.to_csv(path, mode = 'a')
 
-                rt = caseType[0]
-                X = caseType[1]
+    # Run simulation many times to average values
+    rs, total_infecteds = [[], [], []], []
+    simulation_params = None
+    t0 = t1 = None
 
-                # infection rate
-                ir = BASE_INFECTION_RATE[rt]
+    # NOTE(jordan): SAMPLE SIZE IS HERE
+    sample_size = 100
+    for i in range(sample_size):
+        # Run simulation on current active graph
+        simulation = Simulation(g)
 
-                simulationContainer(ax, testRate, rt, X, SAMPLE_SIZE)
-        else:
-            ax = axs[i]
+        # Track params
+        sp = simulation.get_parameters(all = True)
+        if(simulation_params != sp):
+            simulation_params = sp
+            log.info('Simulation-%d parameters at t = %d:\n%s' % (i, simulation.time_index, pp.pformat(simulation_params)))
 
-            rt = caseTypes[0][0]
-            X = caseTypes[0][1]
+        # Run simulation
+        simulation.run()
+            
+        gens = simulation.calculate_r0()
+        gen1 = gens.get('1') or 0
+        gen2 = gens.get('2') or 0
+        gen3 = gens.get('3') or 0
+        gen4 = gens.get('4') or 0
 
-            # infection rate
-            ir = BASE_INFECTION_RATE[rt]
+        r0 = gen2 / gen1
+        r1 = 0 if gen2 == 0 else gen3 / gen2
+        r2 = 0 if gen3 == 0 else gen4 / gen3
+        susceptible = simulation.data['susceptible'].iloc[-1]
 
-            simulationContainer(ax, testRate, rt, X, SAMPLE_SIZE)
+        rs[0].append(r0)
+        rs[1].append(r1)
+        rs[2].append(r2)
+        total_infecteds.append(len(g) - susceptible)    # type: ignore
 
-    xlab = 'Days'
-    ylab = 'Cases'
-    for ax in axs.reshape(-1):
-        ax.set(xlabel = xlab, ylabel = ylab)
-        ax.label_outer()
+        # Append to file
+        simulation.data.to_csv(path, mode = 'a', header = False)
 
-    l = ["Infected", "Recovered", "Susceptible"]
-    if(len(caseTypes) > 1):
-        axs[0, -1].legend(l)
-    else:
-        axs[0].legend(l)
+        # Save start time
+        if(t0 is None):
+            t0 = simulation.time[0]
 
-    colLabels = [r"%s Graph: $\beta$: %.2f%%, X: %d" % (conf.config['graph']['type'], 100 * BASE_INFECTION_RATE[caseType[0]], caseType[1]) for caseType in caseTypes]
-    rowLabels = ["%d days" % (testRate) if isinstance(testRate, int) else testRate for testRate in reversed(testRates)]
+    # Save final time
+    t1 = simulation.time[1]
+    td = t1 - t0    # type: ignore
 
-    # Fancy column/row labels in addition to subplot labels
-    # https://stackoverflow.com/a/25814386/13789724
-    pad = 5 # in points
-
-    '''
-    for ax, col in zip(axs[0], colLabels):
-        ax.annotate(col, xy=(0.5, 1), xytext=(0, pad),
-                    xycoords=ax.title, textcoords='offset points',
-                    size='large', ha='center', va='baseline')
-    '''
-    fig.suptitle(colLabels[0])
-
-    for ax, row in zip(axs, rowLabels):
-        ax.annotate(row, xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
-                    xycoords=ax.yaxis.label, textcoords='offset points',
-                    size='large', ha='right', va='center')
-
-    fig.tight_layout()
-    # tight_layout doesn't take these labels into account. We'll need 
-    # to make some room. These numbers are are manually tweaked. 
-    # You could automatically calculate them, but it's a pain.
-    #fig.subplots_adjust(left=0.15, top=0.95)
-    fig.subplots_adjust(left=0.4)
-    #fig.set_size_inches()
-
-    plt.show()
-
-# test cases to see if output is correct
-#testRates = [7, "None"]
-#castTypes = [CASE_TYPES[0], CASE_TYPES[1]]
-#SAMPLE_SIZE = 1
-
-#caseTypes = CASE_TYPES      # cols
-'''
-testRates = [TEST_RATES[-1], TEST_RATES[-2]]
-for caseTypes in CASE_TYPES[2:]:
-    plotGraphs(testRates, [caseTypes])
-'''
-#'''
-testRates = TEST_RATES[3:]  # split rows in half
-for caseTypes in CASE_TYPES:
-    plotGraphs(testRates, [caseTypes])
-#'''
-testRates = TEST_RATES[:3]  # split rows in half
-for caseTypes in CASE_TYPES:
-    plotGraphs(testRates, [caseTypes])
-#'''
+    log.info("Saved simulation data from %d samples to '%s' | %.2fs runtime (%.4fs each)" % (sample_size, path,
+        td.total_seconds(), td.total_seconds() / sample_size))
+    log.info('R0:               x = %.2f, s = %.2f' % (np.mean(rs[0]), np.std(rs[0])))
+    log.info('R1:               x = %.2f, s = %.2f' % (np.mean(rs[1]), np.std(rs[1])))
+    log.info('R2:               x = %.2f, s = %.2f' % (np.mean(rs[2]), np.std(rs[2])))
+    log.info('Total Infected:   x = %.2f, s = %.2f' % (np.mean(total_infecteds), np.std(total_infecteds)))
