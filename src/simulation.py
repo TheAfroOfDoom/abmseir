@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/06/2021
+# Last Modified: 03/25/2021
 # Modified By: Jordan Williams
 ###
 
@@ -15,10 +15,12 @@ Simulates the infectious spread across a community (graph) based on parameters d
 from log_handler import logging as log
 
 # Packages
+import datetime
 import numpy as np
 import pandas as pd
+from typing import List, Set
 
-class Simulation: 
+class Simulation:
     def __init__(self, g):
         self.all_states = [
             'susceptible',
@@ -26,28 +28,178 @@ class Simulation:
             'infected asymptomatic',
             'infected symptomatic',
             'recovered',
-            'dead'
+            'deceased'
             ]
         
         # Simulation constants
         self.rng = np.random.default_rng() # TODO(jordan): Log this seed
         self.graph = g
-        self.nodes = self.generate_nodes()
+        self.old_index, self.new_index = 0, 1
+        self.nodes = [[], []]   # type: List[List[Node]]
+        self.nodes[self.old_index] = self.generate_nodes()
+        self.nodes[self.new_index] = self.generate_nodes()
+        self.previous_infected_nodes = self.current_infected_nodes = set() # type: Set[int]
 
         # Simulation parameters
         self.set_parameters()
 
         # Simulation data
         self.data = self.generate_data_container()
-        self.time = 0
+        self.time_index = 0
+
+    def add_exogenous_cases(self, amount, time):
+        '''Sets a number of cases specified by `amount` to exposed.
+        This represents cases coming onto campus from outside sources,
+        e.g. an individual getting infected while visiting home.
+        '''
+        nodes = self.nodes[self.new_index]
+        # Susceptible nodes
+        susceptible_nodes = [node.index for node in nodes if node.state == 'susceptible']
+        
+        # If there aren't enough susceptible nodes remaining to infected,
+        # just expose the rest.
+        if(len(susceptible_nodes) <= amount):
+            for i in susceptible_nodes:
+                nodes[i].exogenous = time
+            return
+
+        # Randomly choose an `amount` of susceptible nodes to expose.
+        # The `replace` parameter ensures we don't choose duplicates.
+        chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
+        for i in chosen_indices:
+            nodes[i].exogenous = time
+
+    def calculate_r0(self):
+        total_gens = {}
+        nodes = self.nodes[self.old_index]
+        # R0 calculating
+        for node in nodes:
+            gen = str(node.generation)
+            if(gen not in total_gens.keys()):
+                total_gens[gen] = 0
+            total_gens[gen] += 1
+
+        # Return R0
+        return(total_gens)
+        
+    def count_states(self, t):
+        nodes = self.nodes[self.new_index]
+        # Count data structure
+        data_per_state = {}
+        for state in self.all_states:
+            data_per_state[state] = 0
+        data_per_state['day'] = int(t)
+
+        # Daily counts
+        for node in nodes:
+            data_per_state[node.state] += 1
+
+        # Save data
+        self.data = self.data.append(data_per_state, ignore_index = True)
     
+    def export_data(self):
+        return(self.data.to_csv(line_terminator = '\n'))
+
+    def generate_data_container(self):
+        cols = ['day']
+        cols.extend(self.all_states)
+        data = pd.DataFrame(dtype = int, columns = cols)
+        return(data)
+
+    def generate_nodes(self):
+        nodes = []    # type: List[Node]
+        for node_index in self.graph.nodes():
+            nodes.append(Node(self.rng, node_index))
+
+        # TODO(aidan) May result in added time complexity, could be optimized
+        for node in nodes:
+            node.set_neighbors({i for i in self.graph.neighbors(node.index)})
+
+        return(nodes)
+
     def get_mean_node_degree(self):
         # TODO(jordan): This seems really janky...
         # https://networkx.org/documentation/stable/reference/classes/generated/networkx.Graph.degree.html
         mean_degree = np.mean([degree[1] for degree in self.graph.degree])
         return(mean_degree)
+        
+    def get_parameters(self, all = False):
+        params = {
+            'population_size': self.population_size,
+            'initial_infected_count': self.initial_infected_count,
 
-    def set_parameters(self, args = None):
+            'cycles_per_day': self.cycles_per_day,
+            'time_horizon': self.time_horizon,
+
+            'exogenous_amount': self.exogenous_amount,
+            'exogenous_frequency': self.exogenous_frequency,
+
+            'r0': self.r0
+        }
+        if(all):
+            # Put params into one dict
+            params.update(self.nodes[self.old_index][0].get_parameters(all = True))
+            
+        return(params)
+
+    def link_nodes(self, node_0, node_1):
+        node_0.twin = node_1
+        node_1.twin = node_0
+
+        node_0.test.twin = node_1.test
+        node_1.test.twin = node_0.test
+
+    def pre_step(self):
+        # Randomly infect `initial_infected_count` nodes
+        old_nodes = self.nodes[self.old_index]
+        initial_infected_nodes = self.rng.choice(len(old_nodes), self.initial_infected_count, replace = False)
+        for chosen_node_index in initial_infected_nodes:
+            chosen_node = old_nodes[chosen_node_index]
+            chosen_node.get_infected(self.current_infected_nodes)
+            chosen_node.generation = 1
+
+        log.debug(initial_infected_nodes)
+
+        # Generate new nodes
+        new_nodes = self.nodes[self.new_index]
+        for index in range(len(old_nodes)):
+            # Copy old nodes base params to new nodes
+            old_nodes[index].copy(new_nodes[index], init = True)
+            
+            # Link twin nodes across old/new boundary
+            self.link_nodes(old_nodes[index], new_nodes[index])
+
+    def run(self):
+        t0 = datetime.datetime.now()    # start of sim
+        self.pre_step()
+        for _ in range(self.time_horizon):
+            self.run_step()
+        t1 = datetime.datetime.now()    # end of sim
+        self.time = (t0, t1)            # (start, end)
+
+    def run_step(self):
+        # Add exogenous infections weekly, after the first day
+        if(self.time_index % self.exogenous_frequency == 0 and self.time_index != 0):
+            self.add_exogenous_cases(self.exogenous_amount, self.time_index)
+
+        # Update list of infected nodes
+        self.previous_infected_nodes = self.current_infected_nodes.copy()
+
+        # Update each node
+        old_nodes, new_nodes = self.nodes[self.old_index], self.nodes[self.new_index]
+        for node in new_nodes:
+            node.update(self.rng, self.time_index, old_nodes, [self.previous_infected_nodes, self.current_infected_nodes])
+    
+        # Count each state and add to daily data
+        self.count_states(self.time_index)
+
+        # Increment global time
+        self.time_index += 1
+
+        # Swap indices
+        self.old_index, self.new_index = self.new_index, self.old_index
+    
+    def set_parameters(self, args = None, nodes = None):
         '''Update parameters via a dict argument `args`.
         Forces re-calculation of dependent parameters.
         '''
@@ -55,18 +207,17 @@ class Simulation:
         if(args is None):
             log.debug("Default args passed.")
             # Population
-            self.population_size = len(self.graph)
-            #self.population_size = 1000 # TODO(jordan): Verify that this is equal to graph size
-            self.initial_infected_count = 10
+            self.population_size        = len(self.graph)
+            self.initial_infected_count = 1
 
-            self.cycles_per_day = 3
-            self.time_horizon = 80 * self.cycles_per_day
+            self.cycles_per_day = 6
+            self.time_horizon   = 100 * self.cycles_per_day
 
-            self.exogenous_amount = 5
-            self.exogenous_frequency = 7 * self.cycles_per_day
+            self.exogenous_amount       = 5
+            self.exogenous_frequency    = 7 * self.cycles_per_day
 
             # Disease
-            self.r0 = 1.5
+            self.r0 = 1.05
 
         else:
             log.debug("Non-default args passed.")
@@ -89,123 +240,9 @@ class Simulation:
         # Calculate mean_node_degree once ahead of time so each node doesn't have to do it
         mean_node_degree = self.get_mean_node_degree()
 
-        # Pass params to nodes
-        for node in self.nodes:
+        # Pass params to nodes.
+        for node in (nodes or self.nodes[self.old_index] + self.nodes[self.new_index]):
             node.set_parameters(args, self.cycles_per_day, self.r0, mean_node_degree)
-    
-    def get_parameters(self, all = False):
-        params = {
-            'population_size': self.population_size,
-            'initial_infected_count': self.initial_infected_count,
-
-            'cycles_per_day': self.cycles_per_day,
-            'time_horizon': self.time_horizon,
-
-            'exogenous_amount': self.exogenous_amount,
-            'exogenous_frequency': self.exogenous_frequency,
-
-            'r0': self.r0
-        }
-        if(all):
-            # Put params into one dict
-            params.update(self.nodes[0].get_parameters(all = True))
-            
-        return(params)
-
-    def generate_nodes(self):
-        nodes = []
-        for node_index in self.graph.nodes():
-            nodes.append(Node(self.rng, node_index))
-
-        # TODO(aidan) May result in added time complexity, could be optimized
-        for node in nodes:
-            node.set_neighbors(self.graph.neighbors(node.index), nodes)
-
-        return nodes
-
-    def generate_data_container(self):
-        cols = ['day']
-        cols.extend(self.all_states)
-        data = pd.DataFrame(dtype = int, columns = cols)
-        return data
-
-    def pre_step(self):
-        # Randomly infect `initial_infected_count` nodes
-        initial_infected_nodes = self.rng.choice(len(self.nodes), self.initial_infected_count, replace = False)
-        for chosen_node_index in initial_infected_nodes:
-            chosen_node = self.nodes[chosen_node_index]
-            chosen_node.get_infected()
-            chosen_node.index_case = True
-
-        log.debug(initial_infected_nodes)
-
-    def run_step(self):
-        # Add exogenous infections weekly, after the first week
-        if(self.time % self.exogenous_frequency == 0 and self.time != 0):
-            self.add_exogenous_cases(self.exogenous_amount)
-
-        # Update each node
-        for node in self.nodes:
-            node.update(self.rng, self.time)
-    
-        # Count each state and add to daily data
-        self.count_states(self.time)
-
-        # Increment global time
-        self.time += 1
-    
-    def run(self):
-        self.pre_step()
-        for _ in range(self.time_horizon):
-            self.run_step()
-
-    def count_states(self, t):
-        # Daily counts
-        data_per_state = {}
-        for state in self.all_states:
-            data_per_state[state] = 0
-        data_per_state['day'] = int(t)
-
-        for node in self.nodes:
-            data_per_state[node.state] += 1
-
-        # Save data
-        self.data = self.data.append(data_per_state, ignore_index = True)
-
-    def calculate_r0(self):            
-            total_recovered, total_spread_to = 0, 0
-            # R0 calculating
-            for node in self.nodes:
-                if(node.index_case):
-                    total_recovered += 1
-                    total_spread_to += node.nodes_infected
-
-            # Return R0
-            return(total_spread_to / total_recovered)
-            
-    def add_exogenous_cases(self, amount):
-        '''Sets a number of cases specified by `amount` to exposed.
-        This represents cases coming onto campus from outside sources,
-        e.g. an individual getting infected while visiting home.
-        '''
-        # Susceptible nodes
-        susceptible_nodes = [node.index for node in self.nodes if node.state == 'susceptible']
-        
-        # If there aren't enough susceptible nodes remaining to infected,
-        # just expose the rest.
-        if(len(susceptible_nodes) <= amount):
-            for i in susceptible_nodes:
-                self.nodes[i].get_exposed()
-            return
-
-        # Randomly choose an `amount` of susceptible nodes to expose.
-        # The `replace` parameter ensures we don't choose duplicates.
-        chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
-        for i in chosen_indices:
-            self.nodes[i].get_exposed()
-
-    def export_data(self):
-        return(self.data.to_csv(line_terminator = '\n'))
 
 class Node:
     def __init__(self, rng, i):
@@ -213,44 +250,144 @@ class Node:
         self.rng = rng
 
         # Run-time initialized
-        self.index = i
-        self.index_case = False
-        self.neighbors = []
+        self.index = i              # type: int
+        self.generation = 0         # Uninfected
+        self.neighbors = set()      # type: Set[int]
         self.test = Test(rng, self)
 
         # Node variables
-        self.nodes_infected = 0
+        self.exogenous = -1 # -1: not an exogenous case
         self.quarantine_time = 0
         self.state = 'susceptible'
         self.state_time = 0
 
-    def __str__(self):
-        return(self.state)
+    def contract(self, nodes, previous_infected_nodes):
+        '''Contracts infection with some probability `transmission_rate`
+        from neighboring Nodes.
+        '''
+        twin = self.twin    # type: ignore
+
+        # If we are quarantined, we can't contract the virus
+        if(self.quarantine_time > 0):
+            return
+
+        # Iterate through the prev. time step's infected neighbors
+        #for neighbor in [neighbor for neighbor in twin.neighbors if neighbor.state == 'infected asymptomatic']:
+        #for infected_node in [nodes[index] for index in previous_infected_nodes]:
+        for infected_neighbor in [nodes[infected_index] for infected_index in previous_infected_nodes.intersection(twin.neighbors)]:
+
+            # Contract the virus from this node...
+            if( infected_neighbor.quarantine_time == 0                       #       if the neighbor is not quarantined
+            and self.rng.random() < infected_neighbor.transmission_rate):    # and   if the random chance succeeds
+                # Get exposed
+                self.get_exposed()
+
+                # Track which generation this is
+                self.generation = infected_neighbor.generation + 1
+
+                return
+
+    def copy(self, dest, init = False):
+        '''Copies specific parameters from this `Node` onto a destination `Node`.
+        '''
+        # base params are only copied once at the start during `pre_step()`
+        if(init):
+            dest.generation = self.generation
+
+            # Also copy Test base params
+            self.test.copy(dest.test, init = True)
+
+        else:
+            dest.generation         = self.generation
+            dest.quarantine_time    = self.quarantine_time
+            dest.state              = self.state
+            dest.state_time         = self.state_time
+
+            # Also copy Test params
+            self.test.copy(dest.test)
+
+    def get_exposed(self):
+        # Get exposed
+        self.state = 'exposed'
+        self.state_time = geometric_by_mean(self.rng, self.time_to_infection_mean, self.time_to_infection_min)
+
+    def get_infected(self, current_infected_nodes):
+        self.state = 'infected asymptomatic'
+
+        # Pull from geometric distribution with mean = `time_to_recovery`
+        self.state_time = geometric_by_mean(self.rng, self.time_to_recovery_mean, self.time_to_recovery_min)
+
+        # Add self to list of `current_infected_nodes`
+        current_infected_nodes.add(self.index)
+
+    def get_parameters(self, all = False):
+        params = {
+            'cycles_per_day': self.cycles_per_day,
+            'r0': self.r0,
+
+            'time_to_infection_mean': self.time_to_infection_mean,
+            'time_to_infection_min': self.time_to_infection_min,
+
+            'time_to_recovery_mean': self.time_to_recovery_mean,
+            'time_to_recovery_min': self.time_to_recovery_min,
+
+            'symptoms_probability': self.symptoms_probability,
+            'symptoms_rate': self.symptoms_rate,
+
+            'death_probability': self.death_probability,
+            'death_rate': self.death_rate,
+
+            'beta': self.beta,
+            'transmission_rate': self.transmission_rate
+        }
+        if(all):
+            # Put params into one dict
+            params.update(self.test.get_parameters())
+        
+        return(params)
+
+    def get_uninfected(self, current_infected_nodes):
+        # Remove self from list of `current_infected_nodes`
+        current_infected_nodes.remove(self.index)
+
+    def quarantine(self, time_to_recovery_mean):
+        '''If a node receives a positive test result, they will quarantine
+        for a mean time of `14` (geometric distribution).
+        '''
+        # 14 days flat
+        self.quarantine_time = time_to_recovery_mean
+
+    def set_neighbors(self, neighbor_indices):
+        #for i in neighbor_indices:
+        #    self.neighbors.append(nodes[i])
+        self.neighbors = neighbor_indices
 
     def set_parameters(self, args = None, cycles_per_day = 1, r0 = None, mean_node_degree = None):
         '''Update parameters via a dict argument `args`.
         '''
         # Hard-coded COVID-19 values
         if(args is None):
+            self.cycles_per_day = cycles_per_day
+            self.r0 = r0
+
             # i.e. incubation time
-            self.time_to_infection_mean = 3 * cycles_per_day
-            self.time_to_infection_min = 0 * cycles_per_day
+            self.time_to_infection_mean = 4 * cycles_per_day
+            self.time_to_infection_min = 2 * cycles_per_day
 
             self.time_to_recovery_mean = 14 * cycles_per_day
-            self.time_to_recovery_min = 0 * cycles_per_day
+            self.time_to_recovery_min = 10 * cycles_per_day
 
-            self.probability_of_symptoms = 0.30
-            self.symptoms_rate = (self.probability_of_symptoms / (1 - self.probability_of_symptoms)) / self.time_to_recovery_mean
+            self.symptoms_probability = 0.60
+            self.symptoms_rate = (self.symptoms_probability / (1 - self.symptoms_probability)) / self.time_to_recovery_mean
 
-            self.probability_of_death_given_symptoms = 0.0005
-            self.death_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery_mean
-            #self.probability_of_death_given_symptoms * self.symptoms_rate * (self.symptoms_rate + self.time_to_recovery_mean) / (((1 - self.probability_of_death_given_symptoms) * self.symptoms_rate) - (self.probability_of_death_given_symptoms * self.time_to_recovery_mean))
-                              
+            self.death_probability = 0.0005
+            self.death_rate = (self.death_probability / (1 - self.death_probability)) / self.time_to_recovery_mean
+
             self.beta = r0 * ((1 / self.time_to_recovery_mean) + self.symptoms_rate)
             self.transmission_rate = self.beta / mean_node_degree
 
         else:
-            # Update attribute if it already exists in Simulation class
+            # Update attribute if it already exists in Node class
             for k, v, in args.items():
                 if hasattr(self, k):
                     self.__dict__.update((k, v))
@@ -269,67 +406,34 @@ class Node:
                 self.time_to_recovery_min = self.time_to_recovery_min * cycles_per_day
 
             # symptoms rate
-            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'probability_of_symptoms'])):
-                self.symptoms_rate = (self.probability_of_symptoms / (1 - self.probability_of_symptoms)) / self.time_to_recovery_mean
+            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'symptoms_probability'])):
+                self.symptoms_rate = (self.symptoms_probability / (1 - self.symptoms_probability)) / self.time_to_recovery_mean
 
             # death rate
-            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'probability_of_death_given_symptoms'])):
-                self.death_rate = (self.probability_of_death_given_symptoms / (1 - self.probability_of_death_given_symptoms)) / self.time_to_recovery_mean
+            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'death_probability'])):
+                self.death_rate = (self.death_probability / (1 - self.death_probability)) / self.time_to_recovery_mean
 
             # transmission rate
-            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'probability_of_symptoms', 'r0'])):
+            if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'symptoms_probability', 'r0'])):
                 self.beta = r0 * ((1 / self.time_to_recovery_mean) + self.symptoms_rate)
                 self.transmission_rate = self.beta / mean_node_degree
 
         # Pass params to corresponding Test object
         self.test.set_parameters(args, cycles_per_day)
 
-    def get_parameters(self, all = False):
-        params = {
-            'time_to_infection_mean': self.time_to_infection_mean,
-            'time_to_infection_min': self.time_to_infection_min,
-
-            'time_to_recovery_mean': self.time_to_recovery_mean,
-            'time_to_recovery_min': self.time_to_recovery_min,
-
-            'probability_of_symptoms': self.probability_of_symptoms,
-            'symptoms_rate': self.symptoms_rate,
-
-            'probability_of_death_given_symptoms': self.probability_of_death_given_symptoms,
-            'death_rate': self.death_rate,
-
-            'beta': self.beta,
-            'transmission_rate': self.transmission_rate
-        }
-        if(all):
-            # Put params into one dict
-            params.update(self.test.get_parameters())
-        
-        return(params)
-
-    def set_neighbors(self, neighbor_indices, nodes):
-        for i in neighbor_indices:
-            self.neighbors.append(nodes[i])
-
-    def get_exposed(self):
-        self.state = 'exposed'
-
-        # Pull from geometric distribution with mean = `time_to_infection`
-        self.state_time = geometric_by_mean(self.rng, self.time_to_infection_mean, self.time_to_infection_min)
-
-    def get_infected(self):
-        self.state = 'infected asymptomatic'
-
-        # Pull from geometric distribution with mean = `time_to_recovery`
-        self.state_time = geometric_by_mean(self.rng, self.time_to_recovery_mean, self.time_to_recovery_min)
-
-    def update(self, rng, global_time):
-        '''Runs once per cycle per node, updating a node based on it's state.
+    def update(self, rng, global_time, nodes, infected_nodes):
+        '''Runs once per cycle per node, updating a node based on its twin (prev. time step) and neighbors.
         1. Susceptible: do nothing
         2. Exposed: change to infected state after mean incubation period (3 days)
-        3. Infected:
-        4. Recovered: do nothing
+        3. Infected: spread, gain symptoms, die, etc.
+        4. Recovered/Deceased: do nothing
         '''
+        # Copy params from previous time step
+        twin = self.twin    # type: ignore
+        twin.copy(self)
+
+        previous_infected_nodes, current_infected_nodes = infected_nodes
+
         # Update the amount of time we have left to spend in the current state
         if(self.state_time > 0):
             self.state_time -= 1
@@ -337,70 +441,55 @@ class Node:
         # Update test properties
         self.test.update(global_time, self.time_to_recovery_mean)
 
-        # States that don't do anything (this will probably save on runtime)
-        # susceptible/recovered/dead
-        if(self.state == 'susceptible'
-        or  self.state == 'recovered'
-        or  self.state == 'dead'):
-            pass
+        # susceptible
+        if(self.state == 'susceptible'):
+            # If we have been marked as an exogenous case, gain infection
+            if(self.exogenous >= 0):
+                self.get_exposed()
 
+            # Otherwise, contract infection with some probability from neighbors
+            else:
+                self.contract(nodes, previous_infected_nodes)
+
+            return
+
+        # exposed
+        elif(self.state == 'exposed'):
+            # Progress from exposed to infected state after mean incubation period (3 days)
+            if(self.state_time == 0):
+                self.get_infected(current_infected_nodes)
+            return
+
+        # infected asymptomatic
+        elif(self.state == 'infected asymptomatic'):
+            # Progress from infected to recovered state after mean recovery time (14 days)
+            if(self.state_time == 0):
+                self.state = 'recovered'
+                self.get_uninfected(current_infected_nodes)
+
+            # Gain symptoms with some probability (0.30) at some rate
+            elif(rng.random() < self.symptoms_rate):
+                self.state = 'infected symptomatic'
+                self.get_uninfected(current_infected_nodes)
+            return
+
+        # infected symptomatic
+        elif(self.state == 'infected symptomatic'):
+            # Progress from infected to recovered state after mean recovery time (14 days)
+            if(self.state_time == 0):
+                self.state = 'recovered'
+
+            # Die with some probability (0.0005) at some rate
+            elif(rng.random() < self.death_rate):
+                self.state = 'deceased'
+
+            return
+
+        # recovered/deceased
         else:
-            # exposed
-            if(self.state == 'exposed'):
-                # Progress from exposed to infected state after mean incubation period (3 days)
-                if(self.state_time == 0):
-                    self.get_infected()
-
-            # infected asymptomatic
-            if(self.state == 'infected asymptomatic'):
-                # Spread if not quarantined
-                if(self.quarantine_time == 0):
-                    self.spread()
-
-                # Gain symptoms with some probability (0.30) at a calculated rate
-                if(rng.random() < self.symptoms_rate):
-                    self.state = 'infected symptomatic'
-                    
-                # Progress from infected to recovered state after mean recovery time (14 days)
-                if(self.state_time == 0):
-                    self.state = 'recovered'
-
-            # infected symptomatic
-            if(self.state == 'infected symptomatic'):
-                # Die with some probability (0.0005) at a calculated rate
-                if(rng.random() < self.death_rate):
-                    self.state = 'dead'
-
-                # Progress from infected to recovered state after mean recovery time (14 days)
-                elif(self.state_time == 0):
-                    self.state = 'recovered'
-
-    def spread(self):
-        '''Spreads an infection with some probability `transmission_rate`
-        to its neighboring nodes.
-        '''
-        # Iterate through the node's neighbors
-        for neighbor in self.neighbors:
-    
-            # Spread to this specific neighbor...
-            if( neighbor.state == 'susceptible'                 #       if the neighbor is susceptible
-            and neighbor.quarantine_time == 0                   # and   if the neighbor is not quarantined
-            and self.rng.random() < self.transmission_rate):   # and   if the random chance succeeds
-                neighbor.get_exposed()
-
-                # Count R0 cases (cases caused by index cases)
-                if(self.index_case == True):
-                    self.nodes_infected += 1
-
-    def quarantine(self, time_to_recovery_mean):
-        '''If a node receives a positive test result, they will quarantine
-        for a mean time of `14` (geometric distribution).
-        '''
-        # Pull from geometric distribution, mean recovery time = 14
-        self.quarantine_time = time_to_recovery_mean #geometric_by_mean(self.rng, time_to_recovery)
-        # TODO(jordan): Ask Dr. Fine how long people are put in quarantine for
-        # * min. 14 days no matter what? (implemented)
-        # * until symptoms subside?
+            #elif(self.state == 'recovered'
+            #or  self.state == 'deceased'):
+            return
 
 class Test:
     '''Handles everything related to a node's testing:
@@ -414,7 +503,7 @@ class Test:
         self.rng = rng
 
         # Associated node
-        self.node = node
+        self.node = node    # type: Node
 
         # Number of tests this node has taken
         self.count = 0
@@ -426,16 +515,49 @@ class Test:
         self.delay = 0
         self.processing_results = False
 
+    def copy(self, dest, init = False):
+        '''Copies specific parameters from this `Test` onto a destination `Test`.
+        '''
+        if(init):
+            pass
+
+        else:
+            dest.count      = self.count
+            dest.results    = self.results
+            dest.delay      = self.delay
+            dest.processing_results = self.processing_results
+
+    def get_parameters(self):
+        return({
+            'cycles_per_day': self.cycles_per_day,
+            'specificity': self.specificity,
+            'sensitivity': self.sensitivity,
+            'cost': self.cost,
+            'results_delay': self.results_delay,
+            'rate': self.rate
+        })
+
+    def get_test_results(self, time_to_recovery):
+        '''After the delay in receiving test results, sets the
+        `processing_results` boolean to `False`. Puts the node
+        into quarantine if the test comes back positive.
+        '''
+        self.processing_results = False
+
+        if(self.results):   # self.results and twin.results are the same, i think?
+            self.node.quarantine(time_to_recovery)
+
     def set_parameters(self, args = None, cycles_per_day = 1):
         '''Update parameters via a dict argument `args`.
         '''
         # Hard-coded COVID-19 values
         if(args is None):
-            self.specificity = 0.98
-            self.sensitivity = 0.9
+            self.cycles_per_day = cycles_per_day
+            self.sensitivity = 0.97     # TP
+            self.specificity = 0.988    # TN
             self.cost = 25
             self.results_delay = 1 * cycles_per_day
-            self.rate = 0 * cycles_per_day
+            self.rate = 7 * cycles_per_day
 
         else:
             for k, v, in args.items():
@@ -454,14 +576,30 @@ class Test:
             if(any(key in keys for key in ['cycles_per_day', 'rate'])):
                 self.rate = self.rate * cycles_per_day
 
-    def get_parameters(self):
-        return({
-            'specificity': self.specificity,
-            'sensitivity': self.sensitivity,
-            'cost': self.cost,
-            'results_delay': self.results_delay,
-            'rate': self.rate
-        })
+    def take(self):
+        '''Simulates a node taking a COVID test.
+        Returns a boolean based on sensitivity/specificity parameters
+        and whether or not the node is actually infected or not.
+        '''
+        # Increment the amount of tests this node has taken
+        self.count += 1
+
+        # Use positive rates for infected individuals
+        if(self.node.state == 'infected asymptomatic'):
+            if(self.rng.random() < self.sensitivity):
+                self.results = True
+            else:
+                self.results = False
+
+        # Use negative rates for susceptible/exposed/recovered individuals
+        else:
+            if(self.rng.random() < self.specificity):
+                self.results = False
+            else:
+                self.results = True
+                
+        self.processing_results = True
+        self.delay = geometric_by_mean(self.rng, self.results_delay)
 
     def update(self, global_time, time_to_recovery):
         '''Runs once per cycle per node, updating its test information as follows:
@@ -469,8 +607,9 @@ class Test:
             - Updates its node based on the results
         2. 
         '''
-
-        # Don't get tested if dead/recovered
+        # Copy params from previous time step
+        twin = self.twin    # type: ignore
+        twin.copy(self)
 
         # If we are waiting on the latest test results, decrement the delay we are waiting
         if(self.processing_results):
@@ -483,8 +622,8 @@ class Test:
                                                                         #       divisible by our `self.rate`
         bool_should_get_tested &=   global_time > 0                     # and   if this isn't the first day of the simulation
         bool_should_get_tested &=   self.node.quarantine_time == 0      # and   if we aren't already in quarantine
-        bool_should_get_tested &=   (self.node.state != 'recovered'     # and   if node is not recovered/dead (those who already had infection will always test positive [FP])
-                                    and self.node.state != 'dead')
+        bool_should_get_tested &=   (self.node.state != 'recovered'     # and   if node is not recovered/deceased (those who already had infection will always test positive [FP])
+                                    and self.node.state != 'deceased')
 
         # Get tested if the above conditions pass
         if(bool_should_get_tested):
@@ -494,46 +633,6 @@ class Test:
         if(self.processing_results
         and self.delay == 0):
             self.get_test_results(time_to_recovery)
-
-    def take(self):
-        '''Simulates a node taking a COVID test.
-        Returns a boolean based on sensitivity/specificity parameters
-        and whether or not the node is actually infected or not.
-        '''
-
-        # Increment the amount of tests this node has taken
-        self.count += 1
-
-        # Use positive rates for infected individuals
-        if(self.node.state == 'infected asymptomatic'
-        #or self.node.state == 'infected'
-        ):
-            if(self.rng.random() < self.sensitivity):
-                self.results = True
-            else:
-                self.results = False
-                pass
-
-        # Use negative rates for susceptible/exposed/recovered individuals
-        else:
-            if(self.rng.random() < self.specificity):
-                self.results = False
-                pass
-            else:
-                self.results = True
-                
-        self.processing_results = True
-        self.delay = geometric_by_mean(self.rng, self.results_delay)
-
-    def get_test_results(self, time_to_recovery):
-        '''After the delay in receiving test results, sets the
-        `processing_results` boolean to `False`. Puts the node
-        into quarantine if the test comes back positive.
-        '''
-        self.processing_results = False
-
-        if(self.results):
-            self.node.quarantine(time_to_recovery)
 
 def geometric_by_mean(rng, mean, min = 0):
     # https://en.wikipedia.org/wiki/Geometric_distribution (mean = 1 / p)

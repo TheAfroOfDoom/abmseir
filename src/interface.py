@@ -3,7 +3,7 @@
 # Created: 02/19/2021
 # Author: Aidan Tokarski (astoka21@colby.edu)
 # -----
-# Last Modified: 03/08/2021
+# Last Modified: 03/11/2021
 # Modified By: Jordan Williams
 ###
 
@@ -156,7 +156,7 @@ class ParameterPanel(UIModule):
         self.add_param('time_horizon', 'Days', default=100)
 
         self.add_param('exogenous_amount', 'Exogenous amount', default=5)
-        self.add_param('exogenous_frequency', 'Exogenous frequency', default=5)
+        self.add_param('exogenous_frequency', 'Exogenous frequency', default=7)
         
         self.add_param('r0', 'Basic reproduction number (R0)', default=1.5)
         
@@ -166,8 +166,8 @@ class ParameterPanel(UIModule):
         self.add_param('time_to_recovery_mean', 'Mean time to recovery', default=14)
         self.add_param('time_to_recovery_min', 'Min time to recovery', default=0)
         
-        self.add_param('probability_of_symptoms', 'Probability of symptoms', default=0.30)
-        self.add_param('probability_of_death_given_symptoms', 'Probability of death given symptoms', default=0.0005)
+        self.add_param('symptoms_probability', 'Probability of symptoms', default=0.30)
+        self.add_param('death_probability', 'Probability of death given symptoms', default=0.0005)
         
         self.add_param('specificity', 'Test specificity', default=0.997)
         self.add_param('sensitivity', 'Test sensitivity', default=0.9)

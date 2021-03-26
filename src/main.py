@@ -3,7 +3,7 @@
 # Created: 12/06/2020
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/06/2021
+# Last Modified: 03/11/2021
 # Modified By: Jordan Williams
 ###
 
@@ -49,11 +49,12 @@ if __name__ == '__main__':
     simulation.data.to_csv(path, mode = 'a')
 
     # Run simulation many times to average values
-    r0s, total_infecteds = [], []
+    rs, total_infecteds = [[], [], []], []
     simulation_params = None
+    t0 = t1 = None
 
     # NOTE(jordan): SAMPLE SIZE IS HERE
-    sample_size = 1
+    sample_size = 100
     for i in range(sample_size):
         # Run simulation on current active graph
         simulation = Simulation(g)
@@ -62,22 +63,41 @@ if __name__ == '__main__':
         sp = simulation.get_parameters(all = True)
         if(simulation_params != sp):
             simulation_params = sp
-            log.info('Simulation-%d parameters at t = %d:\n%s' % (i, simulation.time, pp.pformat(simulation_params)))
+            log.info('Simulation-%d parameters at t = %d:\n%s' % (i, simulation.time_index, pp.pformat(simulation_params)))
 
         # Run simulation
         simulation.run()
             
-        r0 = simulation.calculate_r0()
+        gens = simulation.calculate_r0()
+        gen1 = gens.get('1') or 0
+        gen2 = gens.get('2') or 0
+        gen3 = gens.get('3') or 0
+        gen4 = gens.get('4') or 0
+
+        r0 = gen2 / gen1
+        r1 = 0 if gen2 == 0 else gen3 / gen2
+        r2 = 0 if gen3 == 0 else gen4 / gen3
         susceptible = simulation.data['susceptible'].iloc[-1]
 
-        r0s.append(r0)
-        total_infecteds.append(len(g) - susceptible)
+        rs[0].append(r0)
+        rs[1].append(r1)
+        rs[2].append(r2)
+        total_infecteds.append(len(g) - susceptible)    # type: ignore
 
         # Append to file
         simulation.data.to_csv(path, mode = 'a', header = False)
 
-    log.info("Saved simulation data from %d samples to '%s'" % (sample_size, path))
+        # Save start time
+        if(t0 is None):
+            t0 = simulation.time[0]
 
-    log.info('R0:               x = %.2f, s = %.2f' % (np.mean(r0s), np.std(r0s)))
+    # Save final time
+    t1 = simulation.time[1]
+    td = t1 - t0    # type: ignore
+
+    log.info("Saved simulation data from %d samples to '%s' | %.2fs runtime (%.4fs each)" % (sample_size, path,
+        td.total_seconds(), td.total_seconds() / sample_size))
+    log.info('R0:               x = %.2f, s = %.2f' % (np.mean(rs[0]), np.std(rs[0])))
+    log.info('R1:               x = %.2f, s = %.2f' % (np.mean(rs[1]), np.std(rs[1])))
+    log.info('R2:               x = %.2f, s = %.2f' % (np.mean(rs[2]), np.std(rs[2])))
     log.info('Total Infected:   x = %.2f, s = %.2f' % (np.mean(total_infecteds), np.std(total_infecteds)))
-#    log.info('R0s:      %s' % (r0s))

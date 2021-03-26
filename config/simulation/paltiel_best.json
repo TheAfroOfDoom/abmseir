@@ -16,8 +16,8 @@
     "time_to_recovery_mean": 14,
     "time_to_recovery_min": 0,
 
-    "probability_of_symptoms": 0.30,
-    "probability_of_death_given_symptoms": 0.0005,
+    "symptoms_probability": 0.30,
+    "death_probability": 0.0005,
 
     "specificity": 0.997,
     "sensitivity": 0.9,
