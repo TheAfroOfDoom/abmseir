@@ -22,7 +22,7 @@ graphs/ring/
 Fall 2020*
 output/data/*
 
-# Outputs
+# Executable outputs
 *.spec
 dist/
 build/
@@ -31,11 +31,14 @@ build/
 *.bat
 
 # Python test files
-test.py
+src/*test.py
 tempCodeRunnerFile.py
 
 # Python cache files
 *.cpython*
+
+# R meta files
+*.Rhistory
 
 # VSCode meta files
 .vscode/

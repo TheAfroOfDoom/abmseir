@@ -405,7 +405,7 @@ server <- function(input, output) {
             i,
 
             # S: Susceptible
-            # S = (1-β(Ia/(S+Ia+E)))S + μF - S_{i-1}(1-rn) - X
+            # S = S-β(S*Ia/(S+Ia+E)) + μF - S_{i-1}(1-rn) - X
             max(0,mat[i,2]*(1-beta*(mat[i,5]/(mat[i,2]+mat[i,5]+mat[i,4])))+mat[i,3]*mu-mat[i-1,2]*(1-input$test_specificity)/cycles.per.test-superspreader.event[i+1]*input$new_infections_per_shock),
 
             # FP: False-Positives

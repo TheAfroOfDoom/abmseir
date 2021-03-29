@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/25/2021
+# Last Modified: 03/28/2021
 # Modified By: Jordan Williams
 ###
 
@@ -208,16 +208,16 @@ class Simulation:
             log.debug("Default args passed.")
             # Population
             self.population_size        = len(self.graph)
-            self.initial_infected_count = 1
+            self.initial_infected_count = 10
 
-            self.cycles_per_day = 6
-            self.time_horizon   = 100 * self.cycles_per_day
+            self.cycles_per_day = 3
+            self.time_horizon   = 80 * self.cycles_per_day
 
-            self.exogenous_amount       = 5
+            self.exogenous_amount       = 10
             self.exogenous_frequency    = 7 * self.cycles_per_day
 
             # Disease
-            self.r0 = 1.05
+            self.r0 = 1.5
 
         else:
             log.debug("Non-default args passed.")
@@ -371,13 +371,13 @@ class Node:
             self.r0 = r0
 
             # i.e. incubation time
-            self.time_to_infection_mean = 4 * cycles_per_day
-            self.time_to_infection_min = 2 * cycles_per_day
+            self.time_to_infection_mean = 3 * cycles_per_day
+            self.time_to_infection_min = 0 * cycles_per_day
 
             self.time_to_recovery_mean = 14 * cycles_per_day
-            self.time_to_recovery_min = 10 * cycles_per_day
+            self.time_to_recovery_min = 0 * cycles_per_day
 
-            self.symptoms_probability = 0.60
+            self.symptoms_probability = 0.30
             self.symptoms_rate = (self.symptoms_probability / (1 - self.symptoms_probability)) / self.time_to_recovery_mean
 
             self.death_probability = 0.0005
@@ -553,10 +553,10 @@ class Test:
         # Hard-coded COVID-19 values
         if(args is None):
             self.cycles_per_day = cycles_per_day
-            self.sensitivity = 0.97     # TP
-            self.specificity = 0.988    # TN
+            self.sensitivity = 0.8     # TP
+            self.specificity = 0.98    # TN
             self.cost = 25
-            self.results_delay = 1 * cycles_per_day
+            self.results_delay = 0 * cycles_per_day
             self.rate = 7 * cycles_per_day
 
         else:
@@ -587,19 +587,19 @@ class Test:
         # Use positive rates for infected individuals
         if(self.node.state == 'infected asymptomatic'):
             if(self.rng.random() < self.sensitivity):
-                self.results = True
+                self.results = True     # True positive
             else:
-                self.results = False
+                self.results = False    # False negative
 
         # Use negative rates for susceptible/exposed/recovered individuals
         else:
             if(self.rng.random() < self.specificity):
-                self.results = False
+                self.results = False    # True negative
             else:
-                self.results = True
+                self.results = True     # False positive
                 
         self.processing_results = True
-        self.delay = geometric_by_mean(self.rng, self.results_delay)
+        self.delay = 0 if self.results_delay == 0 else geometric_by_mean(self.rng, self.results_delay)
 
     def update(self, global_time, time_to_recovery):
         '''Runs once per cycle per node, updating its test information as follows:
@@ -622,7 +622,8 @@ class Test:
                                                                         #       divisible by our `self.rate`
         bool_should_get_tested &=   global_time > 0                     # and   if this isn't the first day of the simulation
         bool_should_get_tested &=   self.node.quarantine_time == 0      # and   if we aren't already in quarantine
-        bool_should_get_tested &=   (self.node.state != 'recovered'     # and   if node is not recovered/deceased (those who already had infection will always test positive [FP])
+        bool_should_get_tested &=   (self.node.state != 'infected symptomatic'     # and   if node is not recovered/deceased/inf.symp. (those who already had infection will always test positive [FP])
+                                    and self.node.state != 'recovered'
                                     and self.node.state != 'deceased')
 
         # Get tested if the above conditions pass
