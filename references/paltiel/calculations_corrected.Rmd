@@ -28,15 +28,15 @@ initial.susceptible <- 4990
 initial.infected <- 10
 total.n <- initial.susceptible + initial.infected
 
-r0 <- 1.5
+r0 <- 3.5
 exogenous.shocks <- "Yes"
 frequency.exogenous.shocks.per.day <- 7
-new.infections.per.shock <- 10
+new.infections.per.shock <- 25
 days.incubation <- 3
 time.to.recovery <- 14
 per.asymptotics.advancing.to.symptoms <- 0.3
 symptom.case.fatality.ratio <- 0.0005
-frequency.screening <- "Weekly"
+frequency.screening <- "Symptoms Only"
 test.sensitivity <- 0.8
 test.cost <- 25
 test.specificity <- 0.98

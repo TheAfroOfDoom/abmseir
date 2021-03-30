@@ -213,11 +213,11 @@ class Simulation:
             self.cycles_per_day = 3
             self.time_horizon   = 80 * self.cycles_per_day
 
-            self.exogenous_amount       = 10
+            self.exogenous_amount       = 25
             self.exogenous_frequency    = 7 * self.cycles_per_day
 
             # Disease
-            self.r0 = 1.5
+            self.r0 = 3.5
 
         else:
             log.debug("Non-default args passed.")
@@ -557,7 +557,7 @@ class Test:
             self.specificity = 0.98    # TN
             self.cost = 25
             self.results_delay = 0 * cycles_per_day
-            self.rate = 7 * cycles_per_day
+            self.rate = 0 * cycles_per_day
 
         else:
             for k, v, in args.items():
