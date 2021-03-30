@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/28/2021
+# Last Modified: 03/30/2021
 # Modified By: Jordan Williams
 ###
 
@@ -16,6 +16,7 @@ from log_handler import logging as log
 
 # Packages
 import datetime
+import math
 import numpy as np
 import pandas as pd
 from typing import List, Set
@@ -90,9 +91,24 @@ class Simulation:
             data_per_state[state] = 0
         data_per_state['day'] = int(t)
 
+        # Extra stats to track
+        extra_states = ['test_count', 'true_positives', 'false_positives']
+        for state in extra_states:
+            data_per_state[state] = int(0)
+
         # Daily counts
         for node in nodes:
             data_per_state[node.state] += 1
+
+            # Count how many tests have been taken up to this point
+            data_per_state['test_count'] += node.test.count
+
+            # Count how many TP/FP tests in this state
+            if(node.quarantine_time > 0):
+                if(node.state == 'infected asymptomatic'):
+                    data_per_state['true_positives'] += 1
+                else:   # NOTE(jordan): Currently, exposed cases are FPs
+                    data_per_state['false_positives'] += 1
 
         # Save data
         self.data = self.data.append(data_per_state, ignore_index = True)
@@ -103,6 +119,10 @@ class Simulation:
     def generate_data_container(self):
         cols = ['day']
         cols.extend(self.all_states)
+
+        extra_states = ['test_count', 'true_positives', 'false_positives']
+        cols.extend(extra_states)
+
         data = pd.DataFrame(dtype = int, columns = cols)
         return(data)
 
@@ -150,8 +170,22 @@ class Simulation:
         node_1.test.twin = node_0.test
 
     def pre_step(self):
-        # Randomly infect `initial_infected_count` nodes
         old_nodes = self.nodes[self.old_index]
+        n = self.population_size
+
+        # Allocate which nodes will test on which days
+        rate = old_nodes[0].test.rate
+        test_group_size = math.ceil(n / rate)  # TODO(jordan): This doesn't feel correct
+        for i in range(rate):
+            if((i + 1) * test_group_size <= n):
+                bound = (i + 1) * test_group_size
+            else:
+                bound = -1
+
+            for node in old_nodes[i * test_group_size : bound]:
+                node.test.testing_delay = rate - i
+
+        # Randomly infect `initial_infected_count` nodes
         initial_infected_nodes = self.rng.choice(len(old_nodes), self.initial_infected_count, replace = False)
         for chosen_node_index in initial_infected_nodes:
             chosen_node = old_nodes[chosen_node_index]
@@ -522,9 +556,10 @@ class Test:
             pass
 
         else:
-            dest.count      = self.count
-            dest.results    = self.results
-            dest.delay      = self.delay
+            dest.count          = self.count
+            dest.results        = self.results
+            dest.delay          = self.delay
+            dest.testing_delay  = self.testing_delay
             dest.processing_results = self.processing_results
 
     def get_parameters(self):
@@ -556,8 +591,12 @@ class Test:
             self.sensitivity = 0.8     # TP
             self.specificity = 0.98    # TN
             self.cost = 25
-            self.results_delay = 0 * cycles_per_day
-            self.rate = 7 * cycles_per_day
+            #self.results_delay = 0 * cycles_per_day    # TODO(jordan): Revert this to 1 or 2 days
+            self.results_delay = 1
+
+            # Limit these granularity to daily
+            self.rate = 7 #* cycles_per_day
+            self.testing_delay = self.rate
 
         else:
             for k, v, in args.items():
@@ -571,10 +610,6 @@ class Test:
             # results delay
             if(any(key in keys for key in ['cycles_per_day', 'results_delay'])):
                 self.results_delay = self.results_delay * cycles_per_day
-
-            # rate
-            if(any(key in keys for key in ['cycles_per_day', 'rate'])):
-                self.rate = self.rate * cycles_per_day
 
     def take(self):
         '''Simulates a node taking a COVID test.
@@ -591,7 +626,7 @@ class Test:
             else:
                 self.results = False    # False negative
 
-        # Use negative rates for susceptible/exposed/recovered individuals
+        # Use negative rates for susceptible/exposed individuals
         else:
             if(self.rng.random() < self.specificity):
                 self.results = False    # True negative
@@ -611,16 +646,20 @@ class Test:
         twin = self.twin    # type: ignore
         twin.copy(self)
 
+        # Decrement and wrap testing_delay (limit granularity to once per day)
+        bool_day_granularity = global_time % self.cycles_per_day == 0
+        if(self.rate != 0 and bool_day_granularity):
+            self.testing_delay = (self.testing_delay - 1) % self.rate
+
         # If we are waiting on the latest test results, decrement the delay we are waiting
         if(self.processing_results):
             self.delay -= 1
 
         # Determine if we should get tested
                                                                         # Only test if:
-        bool_should_get_tested  =   (self.rate != 0                     #       `self.rate` is not 0
-                                and global_time % self.rate == 0)       # and   if the current `global_time` is
-                                                                        #       divisible by our `self.rate`
-        bool_should_get_tested &=   global_time > 0                     # and   if this isn't the first day of the simulation
+        bool_should_get_tested  =   self.rate != 0                      #       `self.rate` is not 0
+        bool_should_get_tested &=   self.testing_delay == 0             # and   if we are scheduled to test today
+        bool_should_get_tested &=   bool_day_granularity                # and   if we limit granularity to once per day
         bool_should_get_tested &=   self.node.quarantine_time == 0      # and   if we aren't already in quarantine
         bool_should_get_tested &=   (self.node.state != 'infected symptomatic'     # and   if node is not recovered/deceased/inf.symp. (those who already had infection will always test positive [FP])
                                     and self.node.state != 'recovered'

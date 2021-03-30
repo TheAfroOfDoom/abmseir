@@ -24,7 +24,7 @@ library(plotly)
 ```
 
 ```{r}
-initial.susceptible <- 4990
+initial.susceptible <- 990
 initial.infected <- 10
 total.n <- initial.susceptible + initial.infected
 
@@ -146,6 +146,10 @@ sum.stat <-
             `Total testing cost` = `Total Persons Tested in 80 days`*test.cost,
             `Total Infections` = last(`Cumulative Infections`))
 
+```
+
+```{r}
+write.csv(df, "F:\\Dropbox\\Boxifier\\school\\_MTH465\\Homework\\Project\\Post\\references\\paltiel\\corrected_data.csv", row.names=FALSE)
 ```
 
 ```{r}

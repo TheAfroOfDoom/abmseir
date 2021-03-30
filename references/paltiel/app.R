@@ -424,7 +424,7 @@ server <- function(input, output) {
             # Is = (1-δ-ρ)Is + σ(Ia+R)
             max(0,mat[i,6]*(1-delta-rho)+(mat[i,5]+mat[i,7])*sigma),
 
-            # TP: True Positives (Infected Symptomatic, those who test positive)
+            # TP: True Positives (Infected Asymptomatic, those who test positive)
             # TP = (1-σ-ρ)TP + (rp)Ia_{i-1}
             max(0,mat[i,7]*(1-sigma-rho)+mat[i-1,5]*input$test_sensitivity/cycles.per.test),
 

@@ -2,7 +2,7 @@
     "graph": {
         "active": {
             "type": "complete",
-            "properties": [5000]
+            "properties": [1000]
         },
         "definitions": {
             "complete": {
