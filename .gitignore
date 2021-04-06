@@ -39,6 +39,7 @@ tempCodeRunnerFile.py
 
 # R meta files
 *.Rhistory
+*.RData
 
 # VSCode meta files
 .vscode/

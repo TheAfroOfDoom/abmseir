@@ -421,7 +421,7 @@ server <- function(input, output) {
             max(0,mat[i,5]*(1-sigma-rho)+mat[i,4]*theta-mat[i-1,5]*input$test_sensitivity/cycles.per.test),
 
             # Is: Symptoms
-            # Is = (1-δ-ρ)Is + σ(Ia+R)
+            # Is = (1-δ-ρ)Is + σ(Ia+TP)
             max(0,mat[i,6]*(1-delta-rho)+(mat[i,5]+mat[i,7])*sigma),
 
             # TP: True Positives (Infected Asymptomatic, those who test positive)
@@ -432,7 +432,7 @@ server <- function(input, output) {
             # R = R + ρ(Ia+Is+TP)
             max(0,mat[i,8]+(mat[i,5]+mat[i,6]+mat[i,7])*rho),
 
-            # D: Dead
+            # D: Deceased
             # D = D + δIs
             max(0,delta*mat[i,6]+mat[i,9]))
         )

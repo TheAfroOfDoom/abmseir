@@ -3,7 +3,7 @@
 # Created: 02/26/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/06/2021
+# Last Modified: 04/05/2021
 # Modified By: Jordan Williams
 ###
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     data = pd.read_csv(path, comment = '#')
 
-    dgbd = data.groupby('day')
+    dgbd = data.groupby('cycle')
     log.info('\nStats on %s:' % (path))
     log.info('\nMean S: %s' % (dgbd.mean().get('susceptible').iloc[-1]))
     log.info('STD: %s' % (dgbd.std().get('susceptible').iloc[-1]))

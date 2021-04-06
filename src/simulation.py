@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/30/2021
+# Last Modified: 04/06/2021
 # Modified By: Jordan Williams
 ###
 
@@ -19,6 +19,7 @@ import datetime
 import math
 import numpy as np
 import pandas as pd
+
 from typing import List, Set
 
 class Simulation:
@@ -71,17 +72,13 @@ class Simulation:
             nodes[i].exogenous = time
 
     def calculate_r0(self):
-        total_gens = {}
-        nodes = self.nodes[self.old_index]
+        cols = ['generation 1', 'generation 2', 'generation 3', 'generation 4'
+            , 'generation 5', 'generation x']
         # R0 calculating
-        for node in nodes:
-            gen = str(node.generation)
-            if(gen not in total_gens.keys()):
-                total_gens[gen] = 0
-            total_gens[gen] += 1
+        df = self.data[cols].iloc[-1]
 
         # Return R0
-        return(total_gens)
+        return(df)
         
     def count_states(self, t):
         nodes = self.nodes[self.new_index]
@@ -89,10 +86,12 @@ class Simulation:
         data_per_state = {}
         for state in self.all_states:
             data_per_state[state] = 0
-        data_per_state['day'] = int(t)
+        data_per_state['cycle'] = int(t)
 
         # Extra stats to track
-        extra_states = ['test_count', 'true_positives', 'false_positives']
+        extra_states = ['test count', 'true positive', 'false positive', 'new false positive'
+            , 'returning false positive', 'exogenous', 'generation 1', 'generation 2', 'generation 3'
+            , 'generation 4', 'generation 5', 'generation x']
         for state in extra_states:
             data_per_state[state] = int(0)
 
@@ -101,14 +100,40 @@ class Simulation:
             data_per_state[node.state] += 1
 
             # Count how many tests have been taken up to this point
-            data_per_state['test_count'] += node.test.count
+            data_per_state['test count'] += node.test.count
 
             # Count how many TP/FP tests in this state
             if(node.quarantine_time > 0):
                 if(node.state == 'infected asymptomatic'):
-                    data_per_state['true_positives'] += 1
+                    data_per_state['true positive'] += 1
                 else:   # NOTE(jordan): Currently, exposed cases are FPs
-                    data_per_state['false_positives'] += 1
+                    data_per_state['false positive'] += 1
+                    if(node.new_false_positive):
+                        data_per_state['new false positive'] += 1
+
+            elif(node.returning_false_positive):
+                data_per_state['returning false positive'] += 1
+
+            # Count states regarding exogenous
+            if(node.exogenous >= 0):
+                data_per_state['exogenous'] += 1
+
+            # Infection generations
+            else:
+                if(node.generation == 0):
+                    pass
+                elif(node.generation == 1):
+                    data_per_state['generation 1'] += 1
+                elif(node.generation == 2):
+                    data_per_state['generation 2'] += 1
+                elif(node.generation == 3):
+                    data_per_state['generation 3'] += 1
+                elif(node.generation == 4):
+                    data_per_state['generation 4'] += 1
+                elif(node.generation == 5):
+                    data_per_state['generation 5'] += 1
+                else:
+                    data_per_state['generation x'] += 1
 
         # Save data
         self.data = self.data.append(data_per_state, ignore_index = True)
@@ -117,10 +142,12 @@ class Simulation:
         return(self.data.to_csv(line_terminator = '\n'))
 
     def generate_data_container(self):
-        cols = ['day']
+        cols = ['cycle']
         cols.extend(self.all_states)
 
-        extra_states = ['test_count', 'true_positives', 'false_positives']
+        extra_states = ['test count', 'true positive', 'false positive', 'new false positive'
+            , 'returning false positive', 'exogenous', 'generation 1', 'generation 2', 'generation 3'
+            , 'generation 4', 'generation 5', 'generation x']
         cols.extend(extra_states)
 
         data = pd.DataFrame(dtype = int, columns = cols)
@@ -175,15 +202,16 @@ class Simulation:
 
         # Allocate which nodes will test on which days
         rate = old_nodes[0].test.rate
-        test_group_size = math.ceil(n / rate)  # TODO(jordan): This doesn't feel correct
-        for i in range(rate):
-            if((i + 1) * test_group_size <= n):
-                bound = (i + 1) * test_group_size
-            else:
-                bound = -1
+        if(rate != 0):
+            test_group_size = math.ceil(n / rate)  # TODO(jordan): This doesn't feel correct
+            for i in range(rate):
+                if((i + 1) * test_group_size <= n):
+                    bound = (i + 1) * test_group_size
+                else:
+                    bound = -1
 
-            for node in old_nodes[i * test_group_size : bound]:
-                node.test.testing_delay = rate - i
+                for node in old_nodes[i * test_group_size : bound]:
+                    node.test.testing_delay = rate - i
 
         # Randomly infect `initial_infected_count` nodes
         initial_infected_nodes = self.rng.choice(len(old_nodes), self.initial_infected_count, replace = False)
@@ -213,7 +241,8 @@ class Simulation:
 
     def run_step(self):
         # Add exogenous infections weekly, after the first day
-        if(self.time_index % self.exogenous_frequency == 0 and self.time_index != 0):
+        ti_adj = self.time_index + 1
+        if(ti_adj % self.exogenous_frequency == 0 and ti_adj != 1):
             self.add_exogenous_cases(self.exogenous_amount, self.time_index)
 
         # Update list of infected nodes
@@ -295,6 +324,9 @@ class Node:
         self.state = 'susceptible'
         self.state_time = 0
 
+        self.new_false_positive = False
+        self.returning_false_positive = False
+
     def contract(self, nodes, previous_infected_nodes):
         '''Contracts infection with some probability `transmission_rate`
         from neighboring Nodes.
@@ -336,6 +368,9 @@ class Node:
             dest.quarantine_time    = self.quarantine_time
             dest.state              = self.state
             dest.state_time         = self.state_time
+            
+            dest.new_false_positive         = self.new_false_positive
+            dest.returning_false_positive   = self.returning_false_positive
 
             # Also copy Test params
             self.test.copy(dest.test)
@@ -390,6 +425,9 @@ class Node:
         '''
         # 14 days flat
         self.quarantine_time = time_to_recovery_mean
+
+        if(self.state == 'susceptible'):
+            self.new_false_positive = True
 
     def set_neighbors(self, neighbor_indices):
         #for i in neighbor_indices:
@@ -468,12 +506,23 @@ class Node:
 
         previous_infected_nodes, current_infected_nodes = infected_nodes
 
+        # Data collectionm, resetting states
+        if(self.new_false_positive):
+            self.new_false_positive = False
+        if(self.returning_false_positive):
+            self.returning_false_positive = False
+
         # Update the amount of time we have left to spend in the current state
         if(self.state_time > 0):
             self.state_time -= 1
 
-        # Update test properties
-        self.test.update(global_time, self.time_to_recovery_mean)
+        # Update the amount of time we have left to spend in quarantine, if applicable
+        if(self.quarantine_time > 0):
+            self.quarantine_time -= 1
+
+            # Data collection
+            if(self.quarantine_time == 0):
+                self.returning_false_positive = True
 
         # susceptible
         if(self.state == 'susceptible'):
@@ -485,14 +534,11 @@ class Node:
             else:
                 self.contract(nodes, previous_infected_nodes)
 
-            return
-
         # exposed
         elif(self.state == 'exposed'):
             # Progress from exposed to infected state after mean incubation period (3 days)
             if(self.state_time == 0):
                 self.get_infected(current_infected_nodes)
-            return
 
         # infected asymptomatic
         elif(self.state == 'infected asymptomatic'):
@@ -505,7 +551,6 @@ class Node:
             elif(rng.random() < self.symptoms_rate):
                 self.state = 'infected symptomatic'
                 self.get_uninfected(current_infected_nodes)
-            return
 
         # infected symptomatic
         elif(self.state == 'infected symptomatic'):
@@ -517,13 +562,15 @@ class Node:
             elif(rng.random() < self.death_rate):
                 self.state = 'deceased'
 
-            return
-
         # recovered/deceased
         else:
             #elif(self.state == 'recovered'
             #or  self.state == 'deceased'):
-            return
+            pass
+
+        # NOTE(jordan): Trying out test.update() after node.update() stuff, instead of before
+        # Update test properties
+        self.test.update(global_time, self.time_to_recovery_mean)
 
 class Test:
     '''Handles everything related to a node's testing:
@@ -579,8 +626,16 @@ class Test:
         '''
         self.processing_results = False
 
-        if(self.results):   # self.results and twin.results are the same, i think?
-            self.node.quarantine(time_to_recovery)
+        if(self.results):
+            ttr = 0
+            # If false positive (Susceptible), pull quarantine time from distribution like Paltiel
+            if(self.node.state in ['susceptible', 'exposed']):
+                ttr = geometric_by_mean(self.rng, time_to_recovery)
+            # If true positive (Infected asymptomatic), set quarantine time to rest of recovery time
+            else:
+                ttr = self.node.state_time
+
+            self.node.quarantine(ttr)
 
     def set_parameters(self, args = None, cycles_per_day = 1):
         '''Update parameters via a dict argument `args`.
@@ -595,7 +650,7 @@ class Test:
             self.results_delay = 1
 
             # Limit these granularity to daily
-            self.rate = 7 #* cycles_per_day
+            self.rate = 14 * cycles_per_day
             self.testing_delay = self.rate
 
         else:
@@ -632,23 +687,24 @@ class Test:
                 self.results = False    # True negative
             else:
                 self.results = True     # False positive
-                
+
+        if(self.node.state != 'infected asymptomatic' and
+        self.node.state != 'susceptible'):
+            print('Bad state: %s' % (self.node.state))
+
         self.processing_results = True
         self.delay = 0 if self.results_delay == 0 else geometric_by_mean(self.rng, self.results_delay)
-
     def update(self, global_time, time_to_recovery):
         '''Runs once per cycle per node, updating its test information as follows:
         1. Waits for the test result's delay
             - Updates its node based on the results
-        2. 
         '''
         # Copy params from previous time step
-        twin = self.twin    # type: ignore
-        twin.copy(self)
+        self.twin.copy(self)    # type:ignore
 
         # Decrement and wrap testing_delay (limit granularity to once per day)
-        bool_day_granularity = global_time % self.cycles_per_day == 0
-        if(self.rate != 0 and bool_day_granularity):
+        #bool_day_granularity = global_time % self.cycles_per_day == 0
+        if(self.rate != 0):# and bool_day_granularity):
             self.testing_delay = (self.testing_delay - 1) % self.rate
 
         # If we are waiting on the latest test results, decrement the delay we are waiting
@@ -659,11 +715,14 @@ class Test:
                                                                         # Only test if:
         bool_should_get_tested  =   self.rate != 0                      #       `self.rate` is not 0
         bool_should_get_tested &=   self.testing_delay == 0             # and   if we are scheduled to test today
-        bool_should_get_tested &=   bool_day_granularity                # and   if we limit granularity to once per day
+        #bool_should_get_tested &=   bool_day_granularity                # and   if we limit granularity to once per day
         bool_should_get_tested &=   self.node.quarantine_time == 0      # and   if we aren't already in quarantine
-        bool_should_get_tested &=   (self.node.state != 'infected symptomatic'     # and   if node is not recovered/deceased/inf.symp. (those who already had infection will always test positive [FP])
-                                    and self.node.state != 'recovered'
-                                    and self.node.state != 'deceased')
+        bool_should_get_tested &=   not self.processing_results         # and   if we aren't already waiting on our last test]
+        # TODO(jordan): this will prevent high test rates (e.g. 1 day). Need to remake this to have a list of results coming in with their individual delays
+        bool_should_get_tested &=   (self.node.state == 'infected asymptomatic'     # and   if node is not recovered/deceased/inf.symp. (those who already had infection will always test positive [FP])
+                                    or self.node.state == 'susceptible'
+                                    #and self.node.state != 'exposed'    # TODO(jordan): Technically, Paltiel is not testing Exposed individuals
+                                    )
 
         # Get tested if the above conditions pass
         if(bool_should_get_tested):

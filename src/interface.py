@@ -3,7 +3,7 @@
 # Created: 02/19/2021
 # Author: Aidan Tokarski (astoka21@colby.edu)
 # -----
-# Last Modified: 03/25/2021
+# Last Modified: 04/05/2021
 # Modified By: Jordan Williams
 ###
 
@@ -77,7 +77,7 @@ class UIController(tk.Tk):
     def simulate(self):
         sim = self.generate_sim()
         sim.run()
-        self.frames[OutputPanel].plot_data(sim.data, sim.data['day'], sim.all_states)
+        self.frames[OutputPanel].plot_data(sim.data, sim.data['cycle'], sim.all_states)
         self.export_data_to_file(sim)
 
         gens = sim.calculate_r0()

@@ -3,7 +3,7 @@
 # Created: 12/06/2020
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/30/2021
+# Last Modified: 04/06/2021
 # Modified By: Jordan Williams
 ###
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     t0 = t1 = None
 
     # NOTE(jordan): SAMPLE SIZE IS HERE
-    sample_size = 100
+    sample_size = 200
     for i in range(sample_size):
         # Run simulation on current active graph
         simulation = Simulation(g)
@@ -69,10 +69,11 @@ if __name__ == '__main__':
         simulation.run()
             
         gens = simulation.calculate_r0()
-        gen1 = gens.get('1') or 0
-        gen2 = gens.get('2') or 0
-        gen3 = gens.get('3') or 0
-        gen4 = gens.get('4') or 0
+        gen1 = gens.get('generation 1')
+        gen2 = gens.get('generation 2')
+        gen3 = gens.get('generation 3')
+        gen4 = gens.get('generation 4')
+        gen5 = gens.get('generation 5')
 
         r0 = 0 if gen1 == 0 else gen2 / gen1
         r1 = 0 if gen2 == 0 else gen3 / gen2

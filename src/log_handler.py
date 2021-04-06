@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/19/2021
+# Last Modified: 04/06/2021
 # Modified By: Jordan Williams
 ###
 
@@ -51,6 +51,7 @@ def rotate_latest_log(path):
         # Creation time is impossible on Linux; use last modified time instead
         creation_time = datetime.datetime.fromtimestamp(os_stats.st_mtime)
     else:
+        creation_time = datetime.datetime.now()
         logging.error('platform.system() not identified: %s' % (platform.system()))
 
     creation_time_formatted = creation_time.strftime('%Y-%m-%dT%H%M%S')
