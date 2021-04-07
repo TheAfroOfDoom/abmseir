@@ -3,7 +3,7 @@
 # Created: 12/06/2020
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/06/2021
+# Last Modified: 04/07/2021
 # Modified By: Jordan Williams
 ###
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     t0 = t1 = None
 
     # NOTE(jordan): SAMPLE SIZE IS HERE
-    sample_size = 200
+    sample_size = 1000
     for i in range(sample_size):
         # Run simulation on current active graph
         simulation = Simulation(g)
@@ -75,9 +75,9 @@ if __name__ == '__main__':
         gen4 = gens.get('generation 4')
         gen5 = gens.get('generation 5')
 
-        r0 = 0 if gen1 == 0 else gen2 / gen1
-        r1 = 0 if gen2 == 0 else gen3 / gen2
-        r2 = 0 if gen3 == 0 else gen4 / gen3
+        r0 = 0 if gen1 == 0 else gen2 / gen1    # type: ignore
+        r1 = 0 if gen2 == 0 else gen3 / gen2    # type: ignore
+        r2 = 0 if gen3 == 0 else gen4 / gen3    # type: ignore
         susceptible = simulation.data['susceptible'].iloc[-1]
 
         rs[0].append(r0)

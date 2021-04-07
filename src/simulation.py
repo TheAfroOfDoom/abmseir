@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/06/2021
+# Last Modified: 04/07/2021
 # Modified By: Jordan Williams
 ###
 
@@ -104,12 +104,12 @@ class Simulation:
 
             # Count how many TP/FP tests in this state
             if(node.quarantine_time > 0):
-                if(node.state == 'infected asymptomatic'):
-                    data_per_state['true positive'] += 1
-                else:   # NOTE(jordan): Currently, exposed cases are FPs
+                if(node.state == 'susceptible'):   # NOTE(jordan): Currently, exposed cases are FPs
                     data_per_state['false positive'] += 1
                     if(node.new_false_positive):
                         data_per_state['new false positive'] += 1
+                elif(node.state == 'infected asymptomatic'):
+                    data_per_state['true positive'] += 1
 
             elif(node.returning_false_positive):
                 data_per_state['returning false positive'] += 1
@@ -251,7 +251,7 @@ class Simulation:
         # Update each node
         old_nodes, new_nodes = self.nodes[self.old_index], self.nodes[self.new_index]
         for node in new_nodes:
-            node.update(self.rng, self.time_index, old_nodes, [self.previous_infected_nodes, self.current_infected_nodes])
+            node.update(self.time_index, old_nodes, [self.previous_infected_nodes, self.current_infected_nodes])
     
         # Count each state and add to daily data
         self.count_states(self.time_index)
@@ -276,7 +276,7 @@ class Simulation:
             self.cycles_per_day = 3
             self.time_horizon   = 80 * self.cycles_per_day
 
-            self.exogenous_amount       = 10
+            self.exogenous_amount       = 0
             self.exogenous_frequency    = 7 * self.cycles_per_day
 
             # Disease
@@ -369,8 +369,8 @@ class Node:
             dest.state              = self.state
             dest.state_time         = self.state_time
             
-            dest.new_false_positive         = self.new_false_positive
-            dest.returning_false_positive   = self.returning_false_positive
+            dest.new_false_positive         = 0 #self.new_false_positive
+            dest.returning_false_positive   = 0 #self.returning_false_positive
 
             # Also copy Test params
             self.test.copy(dest.test)
@@ -384,7 +384,7 @@ class Node:
         self.state = 'infected asymptomatic'
 
         # Pull from geometric distribution with mean = `time_to_recovery`
-        self.state_time = geometric_by_mean(self.rng, self.time_to_recovery_mean, self.time_to_recovery_min)
+        self.state_time = geometric_by_mean(self.rng, self.time_to_recovery_mean)#, self.time_to_recovery_min)
 
         # Add self to list of `current_infected_nodes`
         current_infected_nodes.add(self.index)
@@ -396,9 +396,11 @@ class Node:
 
             'time_to_infection_mean': self.time_to_infection_mean,
             'time_to_infection_min': self.time_to_infection_min,
+            'incubation_rate': self.incubation_rate,
 
             'time_to_recovery_mean': self.time_to_recovery_mean,
             'time_to_recovery_min': self.time_to_recovery_min,
+            'recovery_rate': self.recovery_rate,
 
             'symptoms_probability': self.symptoms_probability,
             'symptoms_rate': self.symptoms_rate,
@@ -415,16 +417,21 @@ class Node:
         
         return(params)
 
+    def get_recovered(self, current_infected_nodes):
+        # Get recovered
+        self.state = 'recovered'
+        self.get_uninfected(current_infected_nodes)
+
     def get_uninfected(self, current_infected_nodes):
         # Remove self from list of `current_infected_nodes`
         current_infected_nodes.remove(self.index)
 
-    def quarantine(self, time_to_recovery_mean):
+    def quarantine(self, time_to_recovery_mean = 14):
         '''If a node receives a positive test result, they will quarantine
         for a mean time of `14` (geometric distribution).
         '''
         # 14 days flat
-        self.quarantine_time = time_to_recovery_mean
+        self.quarantine_time = 1 #time_to_recovery_mean
 
         if(self.state == 'susceptible'):
             self.new_false_positive = True
@@ -445,9 +452,11 @@ class Node:
             # i.e. incubation time
             self.time_to_infection_mean = 3 * cycles_per_day
             self.time_to_infection_min = 0 * cycles_per_day
+            self.incubation_rate = 1 / self.time_to_infection_mean
 
             self.time_to_recovery_mean = 14 * cycles_per_day
             self.time_to_recovery_min = 0 * cycles_per_day
+            self.recovery_rate = 1 / self.time_to_recovery_mean
 
             self.symptoms_probability = 0.30
             self.symptoms_rate = (self.symptoms_probability / (1 - self.symptoms_probability)) / self.time_to_recovery_mean
@@ -471,11 +480,14 @@ class Node:
             if(any(key in keys for key in ['cycles_per_day', 'time_to_infection_mean', 'time_to_infection_min'])):
                 self.time_to_infection_mean = self.time_to_infection_mean * cycles_per_day
                 self.time_to_infection_min = self.time_to_infection_min * cycles_per_day
+                self.incubation_rate = 1 / self.time_to_infection_mean
+
 
             # recovery rate
             if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min'])):
                 self.time_to_recovery_mean = self.time_to_recovery_mean * cycles_per_day
                 self.time_to_recovery_min = self.time_to_recovery_min * cycles_per_day
+                self.recovery_rate = 1 / self.time_to_recovery_mean
 
             # symptoms rate
             if(any(key in keys for key in ['cycles_per_day', 'time_to_recovery_mean', 'time_to_recovery_min', 'symptoms_probability'])):
@@ -493,7 +505,7 @@ class Node:
         # Pass params to corresponding Test object
         self.test.set_parameters(args, cycles_per_day)
 
-    def update(self, rng, global_time, nodes, infected_nodes):
+    def update(self, global_time, nodes, infected_nodes):
         '''Runs once per cycle per node, updating a node based on its twin (prev. time step) and neighbors.
         1. Susceptible: do nothing
         2. Exposed: change to infected state after mean incubation period (3 days)
@@ -506,61 +518,72 @@ class Node:
 
         previous_infected_nodes, current_infected_nodes = infected_nodes
 
-        # Data collectionm, resetting states
+        # Data collection, resetting states
         if(self.new_false_positive):
             self.new_false_positive = False
         if(self.returning_false_positive):
             self.returning_false_positive = False
 
         # Update the amount of time we have left to spend in the current state
-        if(self.state_time > 0):
-            self.state_time -= 1
-
-        # Update the amount of time we have left to spend in quarantine, if applicable
-        if(self.quarantine_time > 0):
-            self.quarantine_time -= 1
-
-            # Data collection
-            if(self.quarantine_time == 0):
-                self.returning_false_positive = True
+        #if(self.state_time > 0):
+        #    self.state_time -= 1
 
         # susceptible
         if(self.state == 'susceptible'):
-            # If we have been marked as an exogenous case, gain infection
-            if(self.exogenous >= 0):
-                self.get_exposed()
+            # In quarantine
+            if(self.quarantine_time > 0):
+                #self.quarantine_time -= 1
+                # Chance of leaving quarantine
+                if(self.rng.random() < self.recovery_rate):
+                    self.quarantine_time -= 1
 
-            # Otherwise, contract infection with some probability from neighbors
+                # Data collection
+                if(self.quarantine_time == 0):
+                    self.returning_false_positive = True
+
+            # Not quarantined
             else:
-                self.contract(nodes, previous_infected_nodes)
+                # If we have been marked as an exogenous case, gain infection
+                if(self.exogenous >= 0):
+                    self.get_exposed()
+                            
+                # Otherwise, contract infection with some probability from neighbors
+                else:
+                    self.contract(nodes, previous_infected_nodes)
 
         # exposed
         elif(self.state == 'exposed'):
             # Progress from exposed to infected state after mean incubation period (3 days)
-            if(self.state_time == 0):
+            #if(self.state_time == 0):
+            if(self.rng.random() < self.incubation_rate):
                 self.get_infected(current_infected_nodes)
 
         # infected asymptomatic
         elif(self.state == 'infected asymptomatic'):
             # Progress from infected to recovered state after mean recovery time (14 days)
-            if(self.state_time == 0):
-                self.state = 'recovered'
-                self.get_uninfected(current_infected_nodes)
+            #if(self.state_time == 0):
+            if(self.rng.random() < self.recovery_rate):
+                if(self.quarantine_time > 0):
+                    self.quarantine_time -= 1
+                self.get_recovered(current_infected_nodes)
 
             # Gain symptoms with some probability (0.30) at some rate
-            elif(rng.random() < self.symptoms_rate):
+            elif(self.rng.random() < self.symptoms_rate):
+                if(self.quarantine_time > 0):
+                    self.quarantine_time -= 1
                 self.state = 'infected symptomatic'
                 self.get_uninfected(current_infected_nodes)
 
         # infected symptomatic
         elif(self.state == 'infected symptomatic'):
             # Progress from infected to recovered state after mean recovery time (14 days)
-            if(self.state_time == 0):
-                self.state = 'recovered'
-
+            #if(self.state_time == 0):
             # Die with some probability (0.0005) at some rate
-            elif(rng.random() < self.death_rate):
+            if(self.rng.random() < self.death_rate):
                 self.state = 'deceased'
+
+            elif(self.rng.random() < self.recovery_rate):
+                self.state = 'recovered'
 
         # recovered/deceased
         else:
@@ -635,7 +658,7 @@ class Test:
             else:
                 ttr = self.node.state_time
 
-            self.node.quarantine(ttr)
+            self.node.quarantine()#ttr)
 
     def set_parameters(self, args = None, cycles_per_day = 1):
         '''Update parameters via a dict argument `args`.
@@ -643,14 +666,14 @@ class Test:
         # Hard-coded COVID-19 values
         if(args is None):
             self.cycles_per_day = cycles_per_day
-            self.sensitivity = 0.8     # TP
-            self.specificity = 0.98    # TN
+            self.sensitivity = 0 #1 #0.8     # TP
+            self.specificity = 1 #0.98    # TN
             self.cost = 25
             #self.results_delay = 0 * cycles_per_day    # TODO(jordan): Revert this to 1 or 2 days
             self.results_delay = 1
 
             # Limit these granularity to daily
-            self.rate = 14 * cycles_per_day
+            self.rate = 0 * cycles_per_day
             self.testing_delay = self.rate
 
         else:
@@ -694,6 +717,7 @@ class Test:
 
         self.processing_results = True
         self.delay = 0 if self.results_delay == 0 else geometric_by_mean(self.rng, self.results_delay)
+        
     def update(self, global_time, time_to_recovery):
         '''Runs once per cycle per node, updating its test information as follows:
         1. Waits for the test result's delay

@@ -36,10 +36,10 @@ days.incubation <- 3
 time.to.recovery <- 14
 per.asymptotics.advancing.to.symptoms <- 0.3
 symptom.case.fatality.ratio <- 0.0005
-frequency.screening <- "Every 2 Weeks"
-test.sensitivity <- 0.8
+frequency.screening <- "Symptoms Only"
+test.sensitivity <- 0 #0.8  # true positive
 test.cost <- 25
-test.specificity <- 0.98
+test.specificity <- 1 #0.98 # true negative
 time.to.return.fps.from.isolation <- time.to.recovery
 confirmatory.test.cost <- 0
 
@@ -96,7 +96,7 @@ for(i in 2:n.cycle) {
              c(i,
                
                 # S: Susceptible
-                # S = S-β(S*Ia/(S+Ia+E)) + μF - S_{i-1}(1-rn) - X
+                # S = S-β(S*Ia/N) + μF - S_{i-1}(1-rn) - X
                max(0,mat[i,2]*(1-beta*(mat[i,5]/total.n))+mat[i,3]*mu-mat[i-1,2]*(1-test.specificity)/cycles.per.test-superspreader.event[i+1]*new.infections.per.shock),
                
                 # FP: False-Positives
@@ -104,7 +104,7 @@ for(i in 2:n.cycle) {
                max(0,mat[i,3]*(1-mu)+mat[i-1,2]*(1-test.specificity)/cycles.per.test),
                
                 # E: Exposed
-                # E = (1-θ)E + β(S*Ia/(S+Ia+E)) + X
+                # E = (1-θ)E + β(S*Ia/N) + X
                max(0,mat[i,4]*(1-theta)+beta*(mat[i,2]*mat[i,5]/total.n)+superspreader.event[i+1]*new.infections.per.shock),
                
                 # Ia: Asympt.
@@ -173,10 +173,6 @@ sum.stat <-
 ```
 
 ```{r}
-write.csv(df, "F:\\Dropbox\\Boxifier\\school\\_MTH465\\Homework\\Project\\Post\\references\\paltiel\\corrected_data.csv", row.names=TRUE)
-```
-
-```{r}
 df %>% 
   select(Day, `True Positive`, Symptoms, `False Positive`) %>% 
   pivot_longer(`True Positive`:`False Positive`, names_to = "Group", values_to = "Value") %>% 
@@ -211,3 +207,8 @@ df %>%
   
 ```
 
+```{r}
+df <- df[!(df$Cycle %in% c(0)), ] # remove 0-th row (initial starting condition)
+df$Cycle <- df$Cycle - 1          # normalize Cycles to be 0:239 instead of 1:240
+write.csv(df, "F:\\Dropbox\\Boxifier\\school\\_MTH465\\Homework\\Project\\Post\\references\\paltiel\\corrected_data.csv", row.names=FALSE)
+```
