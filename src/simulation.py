@@ -322,7 +322,7 @@ class Node:
         self.exogenous = -1 # -1: not an exogenous case
         self.quarantine_time = 0
         self.state = 'susceptible'
-        self.state_time = 0
+        #self.state_time = 0
 
         self.new_false_positive = False
         self.returning_false_positive = False
@@ -367,10 +367,10 @@ class Node:
             dest.generation         = self.generation
             dest.quarantine_time    = self.quarantine_time
             dest.state              = self.state
-            dest.state_time         = self.state_time
+            #dest.state_time         = self.state_time
             
-            dest.new_false_positive         = 0 #self.new_false_positive
-            dest.returning_false_positive   = 0 #self.returning_false_positive
+            dest.new_false_positive         = False #self.new_false_positive
+            dest.returning_false_positive   = False #self.returning_false_positive
 
             # Also copy Test params
             self.test.copy(dest.test)
@@ -378,13 +378,13 @@ class Node:
     def get_exposed(self):
         # Get exposed
         self.state = 'exposed'
-        self.state_time = geometric_by_mean(self.rng, self.time_to_infection_mean, self.time_to_infection_min)
+        #self.state_time = geometric_by_mean(self.rng, self.time_to_infection_mean, self.time_to_infection_min)
 
     def get_infected(self, current_infected_nodes):
         self.state = 'infected asymptomatic'
 
         # Pull from geometric distribution with mean = `time_to_recovery`
-        self.state_time = geometric_by_mean(self.rng, self.time_to_recovery_mean)#, self.time_to_recovery_min)
+        #self.state_time = geometric_by_mean(self.rng, self.time_to_recovery_mean)#, self.time_to_recovery_min)
 
         # Add self to list of `current_infected_nodes`
         current_infected_nodes.add(self.index)
@@ -422,9 +422,17 @@ class Node:
         self.state = 'recovered'
         self.get_uninfected(current_infected_nodes)
 
+    def get_symptoms(self, current_infected_nodes):
+        # Get symptoms
+        self.state = 'infected symptomatic'
+        self.get_uninfected(current_infected_nodes)
+
     def get_uninfected(self, current_infected_nodes):
         # Remove self from list of `current_infected_nodes`
-        current_infected_nodes.remove(self.index)
+        try:
+            current_infected_nodes.remove(self.index)
+        except KeyError:
+            pass
 
     def quarantine(self, time_to_recovery_mean = 14):
         '''If a node receives a positive test result, they will quarantine
@@ -458,10 +466,10 @@ class Node:
             self.time_to_recovery_min = 0 * cycles_per_day
             self.recovery_rate = 1 / self.time_to_recovery_mean
 
-            self.symptoms_probability = 0.30
+            self.symptoms_probability = 0#.30
             self.symptoms_rate = (self.symptoms_probability / (1 - self.symptoms_probability)) / self.time_to_recovery_mean
 
-            self.death_probability = 0.0005
+            self.death_probability = 0#.0005
             self.death_rate = (self.death_probability / (1 - self.death_probability)) / self.time_to_recovery_mean
 
             self.beta = r0 * ((1 / self.time_to_recovery_mean) + self.symptoms_rate)
@@ -518,27 +526,20 @@ class Node:
 
         previous_infected_nodes, current_infected_nodes = infected_nodes
 
-        # Data collection, resetting states
-        if(self.new_false_positive):
-            self.new_false_positive = False
-        if(self.returning_false_positive):
-            self.returning_false_positive = False
-
         # Update the amount of time we have left to spend in the current state
         #if(self.state_time > 0):
         #    self.state_time -= 1
+        
+        # Generate random value [0, 1) to use
+        rng = self.rng.random()
 
         # susceptible
         if(self.state == 'susceptible'):
             # In quarantine
             if(self.quarantine_time > 0):
-                #self.quarantine_time -= 1
                 # Chance of leaving quarantine
-                if(self.rng.random() < self.recovery_rate):
+                if(rng < self.recovery_rate):
                     self.quarantine_time -= 1
-
-                # Data collection
-                if(self.quarantine_time == 0):
                     self.returning_false_positive = True
 
             # Not quarantined
@@ -554,36 +555,35 @@ class Node:
         # exposed
         elif(self.state == 'exposed'):
             # Progress from exposed to infected state after mean incubation period (3 days)
-            #if(self.state_time == 0):
-            if(self.rng.random() < self.incubation_rate):
+            if(rng < self.incubation_rate):
                 self.get_infected(current_infected_nodes)
 
         # infected asymptomatic
         elif(self.state == 'infected asymptomatic'):
             # Progress from infected to recovered state after mean recovery time (14 days)
-            #if(self.state_time == 0):
-            if(self.rng.random() < self.recovery_rate):
+
+            # Gain symptoms with some probability (0.30) at some rate
+            if(rng < self.symptoms_rate):
+                if(self.quarantine_time > 0):
+                    self.quarantine_time -= 1
+                self.get_symptoms(current_infected_nodes)
+
+            # Recover at some rate
+            elif(rng < self.recovery_rate + self.symptoms_rate):
                 if(self.quarantine_time > 0):
                     self.quarantine_time -= 1
                 self.get_recovered(current_infected_nodes)
 
-            # Gain symptoms with some probability (0.30) at some rate
-            elif(self.rng.random() < self.symptoms_rate):
-                if(self.quarantine_time > 0):
-                    self.quarantine_time -= 1
-                self.state = 'infected symptomatic'
-                self.get_uninfected(current_infected_nodes)
-
         # infected symptomatic
         elif(self.state == 'infected symptomatic'):
             # Progress from infected to recovered state after mean recovery time (14 days)
-            #if(self.state_time == 0):
-            # Die with some probability (0.0005) at some rate
-            if(self.rng.random() < self.death_rate):
-                self.state = 'deceased'
-
-            elif(self.rng.random() < self.recovery_rate):
+            
+            if(rng < self.recovery_rate):
                 self.state = 'recovered'
+
+            # Die with some probability (0.0005) at some rate
+            elif(rng < self.death_rate + self.recovery_rate):
+                self.state = 'deceased'
 
         # recovered/deceased
         else:
@@ -656,7 +656,8 @@ class Test:
                 ttr = geometric_by_mean(self.rng, time_to_recovery)
             # If true positive (Infected asymptomatic), set quarantine time to rest of recovery time
             else:
-                ttr = self.node.state_time
+                pass
+                #ttr = self.node.state_time
 
             self.node.quarantine()#ttr)
 
@@ -673,7 +674,7 @@ class Test:
             self.results_delay = 1
 
             # Limit these granularity to daily
-            self.rate = 0 * cycles_per_day
+            self.rate = 0#14 * cycles_per_day
             self.testing_delay = self.rate
 
         else:
@@ -697,16 +698,19 @@ class Test:
         # Increment the amount of tests this node has taken
         self.count += 1
 
+        # Generate random value [0, 1) to use
+        rng = self.rng.random()
+
         # Use positive rates for infected individuals
         if(self.node.state == 'infected asymptomatic'):
-            if(self.rng.random() < self.sensitivity):
+            if(rng < self.sensitivity):
                 self.results = True     # True positive
             else:
                 self.results = False    # False negative
 
         # Use negative rates for susceptible/exposed individuals
         else:
-            if(self.rng.random() < self.specificity):
+            if(rng < self.specificity):
                 self.results = False    # True negative
             else:
                 self.results = True     # False positive

@@ -1,33 +1,48 @@
 ###
 # File: stats.py
-# Created: 02/26/2021
+# Created: 03/05/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/06/2021
+# Last Modified: 04/07/2021
 # Modified By: Jordan Williams
 ###
 
+# type: ignore
+
+import glob
+import os
 import pandas as pd
 
 if __name__ == '__main__':
     path = './output/data/'
-    file = 'simulation_2021-04-06T171437_complete_n1000.csv'
+    files = [
+        'simulation_2021-04-07T173927_complete_n1000.csv',
+       'latest'
+    ]
 
-    data = pd.read_csv(path + file, comment = '#')
+    list_of_files = glob.glob(path + '*.csv')
+    latest_file = max(list_of_files, key=os.path.getctime)
+    latest_file = latest_file[latest_file.rfind('\\'):]
+    files = [latest_file if f == 'latest' else f for f in files]
+
+    data = pd.concat((pd.read_csv(path + f, comment = '#') for f in files))
 
     dgbd = data.groupby('cycle')
-    print('\nStats on %s:' % (path + file))
+    print('\nStats on %s:' % (files))
     
-    paltiel = 351
-    tests = 4881
-    total = data.iloc[0].sum()
-    total -= data.get('test count').iloc[0]
-    total -= data.get('true positive').iloc[0]
-    total -= data.get('false positive').iloc[0]
+    paltiel = 188
+    tests = 5205
 
-    test_count = dgbd.mean().get('test count').iloc[-1]
+    population_cols = ['susceptible', 'exposed', 'infected asymptomatic', 'infected symptomatic',
+        'recovered', 'deceased']
+    total = data[population_cols].iloc[0].sum()
 
-    total_infected = total - dgbd.mean().get('susceptible').iloc[-1]
+    dgbgm = dgbd.mean()
+
+    test_count = dgbgm.get('test count').iloc[-1]
+
+
+    total_infected = total - dgbgm.get('susceptible').iloc[-1]
     error = (total_infected - paltiel) / paltiel
     error_tests = (test_count - tests) / tests
     
@@ -37,5 +52,13 @@ if __name__ == '__main__':
     print('Samples: %d\n' % (dgbd.count().get('susceptible').iloc[-1]))
 
     for column in ['susceptible', 'false positive', 'infected asymptomatic', 'true positive', 'infected symptomatic', 'recovered', 'deceased']:
-        print(f'{column}: %s (%s)' % (dgbd.mean().get(column).iloc[-1]
+        print(f'{column}: %s (%s)' % (dgbgm.get(column).iloc[-1]
                                 , dgbd.std().get(column).iloc[-1]))
+
+    cols = ['generation 1', 'generation 2', 'generation 3', 'generation 4']
+    dgens = dgbgm[cols].iloc[-1]
+    r0 = dgens.get('generation 2') / dgens.get('generation 1')
+    r1 = dgens.get('generation 3') / dgens.get('generation 2')
+    r2 = dgens.get('generation 4') / dgens.get('generation 3')
+
+    print(f'R0: {r0} \nR1: {r1} \nR2: {r2}')
