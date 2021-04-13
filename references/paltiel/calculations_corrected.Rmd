@@ -72,7 +72,7 @@ mu <- 1/(cycles.per.day*time.to.return.fps.from.isolation)
 ```
 
 ```{r}
-n.cycle <- 240
+n.cycle <- 80*cycles.per.day
 
 mat <- matrix(c(0,initial.susceptible,0,0,initial.infected,0,0,0,0), nrow = 1)
 mat <- rbind(mat,

@@ -3,7 +3,7 @@
 # Created: 03/05/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/12/2021
+# Last Modified: 04/09/2021
 # Modified By: Jordan Williams
 ###
 
@@ -23,17 +23,28 @@ if __name__ == '__main__':
 
     list_of_files = glob.glob(path + '*.csv')
     latest_file = max(list_of_files, key=os.path.getctime)
-    latest_file = latest_file[latest_file.rfind('\\'):]
+    latest_file = latest_file[latest_file.rfind('\\'):].replace("\\", "")
     files = [latest_file if f == 'latest' else f for f in files]
 
     data = pd.concat((pd.read_csv(path + f, comment = '#') for f in files))
 
-    dgbd = data.groupby('cycle')
+    f1 = data['cycle'] == 239
+    data['interactions*'] = data['susceptibles contracting']*data['infected nodes']
+    f2 =  data['interactions*'] != data['interactions']
+
+    #data = data.where(f1)# & f2)
+    #data = data[data.cycle == 239]
+
+
+    data[['cycle', 'susceptible', 'infected asymptomatic', 'interactions', 'interactions*']].to_csv('%s/test/%s' % (path, files[0]))
+
+    #dgbd = data.groupby('cycle')
     print('\nStats on %s:' % (files))
     
     paltiel = 188
     tests = 0
 
+'''
     population_cols = ['susceptible', 'exposed', 'infected asymptomatic', 'infected symptomatic',
         'recovered', 'deceased']
     total = data[population_cols].iloc[0].sum()
@@ -63,3 +74,4 @@ if __name__ == '__main__':
     r2 = dgens.get('generation 4') / dgens.get('generation 3')
 
     print(f'R0: {r0} \nR1: {r1} \nR2: {r2}')
+'''
