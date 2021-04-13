@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/12/2021
+# Last Modified: 04/13/2021
 # Modified By: Jordan Williams
 ###
 
@@ -434,7 +434,8 @@ class Node:
         for neighbor in [new_nodes[index] for index in nodes_to_spread_to]:
 
             # Spread to this neighbor if the random chance succeeds...
-            if( self.rng.random() < self.transmission_rate):
+            if( neighbor.state == 'susceptible'
+            and self.rng.random() < self.transmission_rate):
                 # Expose it
                 neighbor.get_exposed(self.generation + 1)
 
