@@ -3,7 +3,7 @@
 # Created: 03/05/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/12/2021
+# Last Modified: 04/16/2021
 # Modified By: Jordan Williams
 ###
 
@@ -42,7 +42,6 @@ if __name__ == '__main__':
 
     test_count = dgbgm.get('test count').iloc[-1]
 
-
     total_infected = total - dgbgm.get('susceptible').iloc[-1]
     error = (total_infected - paltiel) / paltiel
     error_tests = test_count if tests == 0 else (test_count - tests) / tests
@@ -56,10 +55,13 @@ if __name__ == '__main__':
         print(f'{column}: %s (%s)' % (dgbgm.get(column).iloc[-1]
                                 , dgbd.std().get(column).iloc[-1]))
 
-    cols = ['generation 1', 'generation 2', 'generation 3', 'generation 4']
-    dgens = dgbgm[cols].iloc[-1]
-    r0 = dgens.get('generation 2') / dgens.get('generation 1')
-    r1 = dgens.get('generation 3') / dgens.get('generation 2')
-    r2 = dgens.get('generation 4') / dgens.get('generation 3')
+    data['r0'] = data['generation 2'] / data['generation 1']
+    data['r1'] = data['generation 3'] / data['generation 2']
+    data['r2'] = data['generation 4'] / data['generation 3']
+
+    drs = data[['cycle', 'r0', 'r1', 'r2']].groupby('cycle').mean().iloc[-1]
+    r0 = drs.get('r0')
+    r1 = drs.get('r1')
+    r2 = drs.get('r2')
 
     print(f'R0: {r0} \nR1: {r1} \nR2: {r2}')

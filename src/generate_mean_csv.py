@@ -3,7 +3,7 @@
 # Created: 03/30/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/09/2021
+# Last Modified: 04/16/2021
 # Modified By: Jordan Williams
 ###
 
@@ -32,7 +32,6 @@ if __name__ == '__main__':
     data['interactions*'] = data['susceptibles contracting']*data['infected nodes']
     dgbd = data.groupby('cycle')
 
-    total = data.iloc[0].sum()
     dfmean = dgbd.mean()
 
     cols = ['susceptible', 'exposed',

@@ -1,0 +1,10 @@
+* increasing active_neighbor_count to roughly 10*r0
+
+* start conditions similar to halfway through simulation
+    * 30,50,100 infectives; 200-400 recovereds
+    - revert artificial changes
+
+* start with 30,50,100 infectives, no recovereds (bigger start, no screening)
+
+DESPERATION
+do it out

@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/13/2021
+# Last Modified: 04/20/2021
 # Modified By: Jordan Williams
 ###
 
@@ -70,15 +70,12 @@ class Simulation:
         # If there aren't enough susceptible nodes remaining to expose,
         # just expose the rest.
         if(len(susceptible_nodes) <= amount):
-            for i in susceptible_nodes:
-                nodes[i].get_exposed()
-                if(exogenous is not None):
-                    nodes[i].exogenous = exogenous
-            return
+            chosen_indices = susceptible_nodes
+        else:   # Otherwise, randomly choose an `amount` of susceptible nodes to expose.
+            # The `replace` parameter ensures we don't choose duplicates.
+            chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
 
-        # Randomly choose an `amount` of susceptible nodes to expose.
-        # The `replace` parameter ensures we don't choose duplicates.
-        chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
+        # Expose these nodes
         for i in chosen_indices:
             nodes[i].get_exposed()
             if(exogenous is not None):
@@ -94,17 +91,15 @@ class Simulation:
         # Susceptible, non-quarantined nodes
         susceptible_nodes = [node.index for node in nodes if (node.state == 'susceptible' and node.quarantine_time == 0)]
         
-        # If there aren't enough susceptible nodes remaining to expose,
-        # just expose the rest.
+        # If there aren't enough susceptible nodes remaining to infect,
+        # just infect the rest.
         if(len(susceptible_nodes) <= amount):
-            for i in susceptible_nodes:
-                nodes[i].get_infected(self.current_infected_nodes)
-                nodes[i].generation = generation
-            return
+            chosen_indices = susceptible_nodes
+        else:   # Otherwise, randomly choose an `amount` of susceptible nodes to infect.
+            # The `replace` parameter ensures we don't choose duplicates.
+            chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
 
-        # Randomly choose an `amount` of susceptible nodes to expose.
-        # The `replace` parameter ensures we don't choose duplicates.
-        chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
+        # Infect these nodes
         for i in chosen_indices:
             nodes[i].get_infected(self.current_infected_nodes)
             nodes[i].generation = generation
@@ -119,16 +114,15 @@ class Simulation:
         # Susceptible, non-quarantined nodes
         susceptible_nodes = [node.index for node in nodes if (node.state == 'susceptible' and node.quarantine_time == 0)]
         
-        # If there aren't enough susceptible nodes remaining to expose,
-        # just expose the rest.
+        # If there aren't enough susceptible nodes remaining to be recovered,
+        # just recover the rest.
         if(len(susceptible_nodes) <= amount):
-            for i in susceptible_nodes:
-                nodes[i].get_recovered()
-            return
+            chosen_indices = susceptible_nodes
+        else:   # Otherwise, randomly choose an `amount` of susceptible nodes to recover.
+            # The `replace` parameter ensures we don't choose duplicates.
+            chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
 
-        # Randomly choose an `amount` of susceptible nodes to expose.
-        # The `replace` parameter ensures we don't choose duplicates.
-        chosen_indices = self.rng.choice(susceptible_nodes, amount, replace = False)
+        # Recover these nodes
         for i in chosen_indices:
             nodes[i].get_recovered()
 
@@ -200,6 +194,8 @@ class Simulation:
             data_per_state['infected nodes'] = len(self.previous_infected_nodes)
             data_per_state['susceptibles contracting'] = self.total_interactions[1]
 
+        self.susceptible_count = data_per_state['susceptible']
+
         # Save data
         self.data = self.data.append(data_per_state, ignore_index = True)
     
@@ -230,7 +226,7 @@ class Simulation:
         # https://networkx.org/documentation/stable/reference/classes/generated/networkx.Graph.degree.html
         mean_degree = np.mean([degree[1] for degree in self.graph.degree])
         return(mean_degree)
-        
+  
     def get_parameters(self, all = False):
         params = {
             'population_size': self.population_size,
@@ -259,7 +255,7 @@ class Simulation:
 
     def pre_step(self):
         old_nodes = self.nodes[self.old_index]
-        n = self.population_size
+        self.susceptible_count = n = self.population_size - self.initial_cases['infected asymptomatic']
 
         # Allocate which nodes will test on which days
         rate = old_nodes[0].test.rate
@@ -298,8 +294,9 @@ class Simulation:
 
     def run_step(self):
         # Add exogenous infections weekly, after the first day
-        ti_adj = self.time_index + 1
-        if(ti_adj % self.exogenous_frequency == 0 and ti_adj != 1):
+        time_index_wrapped = self.time_index + 1
+        if(time_index_wrapped % self.exogenous_frequency == 0
+        and time_index_wrapped != 1):
             self.add_exposed_cases(self.exogenous_amount, self.time_index)
 
         # Update list of infected nodes
@@ -314,7 +311,7 @@ class Simulation:
 
         # Spread from each of previous_infected_nodes
         for node in [old_nodes[infected_index] for infected_index in self.previous_infected_nodes]:
-            node.spread([old_nodes, new_nodes], self.total_interactions)
+            node.spread([old_nodes, new_nodes], self.susceptible_count, self.total_interactions)
 
         # Count each state and add to daily data
         self.count_states(self.time_index)
@@ -336,7 +333,7 @@ class Simulation:
             self.population_size        = len(self.graph)
             self.initial_cases = {
                 'exposed': 0,
-                'infected asymptomatic': 10,
+                'infected asymptomatic': 1,
                 'recovered': 0
             }
 
@@ -371,7 +368,12 @@ class Simulation:
         mean_node_degree = self.get_mean_node_degree()
 
         # Calculate effective number of neighbors each node will interact with each cycle
-        active_neighbor_count = int(np.ceil(self.r0)) + 10    # type: ignore
+        active_neighbor_count = int(np.ceil(self.r0 + 10))  # type: ignore
+        '''
+        active_neighbor_count = self.population_size
+        for initial_case, value in self.initial_cases.__dict__.items():
+            active_neighbor_count -= value
+            '''
 
         # If mean_node_degree is smaller than active_neighbor_count, use it instead
         active_neighbor_count = min(active_neighbor_count, mean_node_degree)
@@ -400,14 +402,12 @@ class Node:
         self.new_false_positive = False
         self.returning_false_positive = False
 
-    def spread(self, nodes, total_interactions):
+    def spread(self, nodes, susceptible_count, total_interactions):
         '''Spreads infection with some probability `transmission_rate`
         from neighboring, non-quarantined Nodes.
         '''
-        old_nodes = nodes[0]
-        new_nodes = nodes[1]
-
-        twin = self.twin    # type: ignore
+        old_nodes = nodes[0]    # type: list[Node]
+        new_nodes = nodes[1]    # type: list[Node]
 
         # If we are quarantined, we can't spread the virus
         if(self.quarantine_time > 0):
@@ -419,16 +419,22 @@ class Node:
         # Generate new random set of active neighbors
         # Interactible, non-quarantined nodes
         nodes_to_spread_to = [index for index in self.neighbors if (
-            old_nodes[index].state in valid_states and old_nodes[index].quarantine_time == 0
+            old_nodes[index].state in valid_states
+            and old_nodes[index].quarantine_time == 0
+            #and new_nodes[index].state in valid_states  # TODO(jordan): This determines whether or not overlap occurs from other infectives
         )]
 
-        # Randomly choose an `active_neighbor_count` of interactible nodes to interact with.
-        # The `replace` parameter ensures we don't choose duplicates.
-        nodes_to_spread_to = self.rng.choice(nodes_to_spread_to, self.active_neighbor_count, replace = False)
+        # Randomly choose an `active_neighbor_count` of infectible nodes to interact with,
+        # if we still have enough
+        if(len(nodes_to_spread_to) > self.active_neighbor_count):
+            nodes_to_spread_to = self.rng.choice(nodes_to_spread_to, self.active_neighbor_count, replace = False)   # type: list[int]
 
         # Grab infected neighbors
         total_interactions[0] += min(self.active_neighbor_count, len(nodes_to_spread_to))
         total_interactions[1] += 1
+
+        # Update transmission rate (dynamic)
+        #self.transmission_rate = 0 if susceptible_count == 0 else self.beta / susceptible_count
 
         # Iterate through the next time step's chosen nodes
         for neighbor in [new_nodes[index] for index in nodes_to_spread_to]:
@@ -465,6 +471,7 @@ class Node:
             self.test.copy(dest.test)
 
     def get_exposed(self, generation = None):
+        assert self.state == 'susceptible'
         # Get exposed
         self.state = 'exposed'            
         #self.state_time = geometric_by_mean(self.rng, self.time_to_infection_mean, self.time_to_infection_min)
@@ -540,8 +547,6 @@ class Node:
             self.new_false_positive = True
 
     def set_neighbors(self, neighbor_indices):
-        #for i in neighbor_indices:
-        #    self.neighbors.append(nodes[i])
         self.neighbors = neighbor_indices
 
     def set_parameters(self, args = None, cycles_per_day = 1, r0 = None, active_neighbor_count = None):
@@ -562,12 +567,14 @@ class Node:
             self.recovery_rate = 1 / self.time_to_recovery_mean
 
             self.symptoms_probability = 0#.30
-            self.symptoms_rate = (self.symptoms_probability / (1 - self.symptoms_probability)) / self.time_to_recovery_mean
+            symptoms_ratio = self.symptoms_probability / (1 - self.symptoms_probability)
+            self.symptoms_rate = symptoms_ratio / self.time_to_recovery_mean
 
             self.death_probability = 0#.0005
-            self.death_rate = (self.death_probability / (1 - self.death_probability)) / self.time_to_recovery_mean
+            death_ratio = self.death_probability / (1 - self.death_probability)
+            self.death_rate = death_ratio / self.time_to_recovery_mean
 
-            self.beta = r0 * ((1 / self.time_to_recovery_mean) + self.symptoms_rate)
+            self.beta = r0 * (self.recovery_rate + self.symptoms_rate)
             self.active_neighbor_count = active_neighbor_count
             self.transmission_rate = self.beta / self.active_neighbor_count
 
