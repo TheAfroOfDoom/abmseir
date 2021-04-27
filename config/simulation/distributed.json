@@ -1,0 +1,32 @@
+{   
+    "samples": {
+        "required": 1
+    },
+    "params": {
+        "cost": 25,
+        "cycles_per_day": 3,
+        "death_probability": 0,
+        
+        "exogenous_amount": 0,
+        "exogenous_frequency": 7,
+
+        "initial_infected_count": 10,
+        "population_size": 1000,
+
+        "r0": 3.0,
+
+        "rate": 0,
+        "results_delay": 1,
+        "sensitivity": 0,
+        "specificity": 1,
+
+        "symptoms_probability": 0,
+
+        "time_horizon": 80,
+        
+        "time_to_infection_mean": 3,
+        "time_to_infection_min": 0,
+        "time_to_recovery_mean": 14,
+        "time_to_recovery_min": 0
+    }
+}

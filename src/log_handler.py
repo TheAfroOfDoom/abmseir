@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 02/19/2021
+# Last Modified: 04/26/2021
 # Modified By: Jordan Williams
 ###
 
@@ -31,7 +31,6 @@ def create_new_latest_log(path):
 
     f.close()
 
-
 def unique_file(basename, ext):
     '''https://stackoverflow.com/a/33691348/13789724
     '''
@@ -53,7 +52,7 @@ def rotate_latest_log(path):
     else:
         logging.error('platform.system() not identified: %s' % (platform.system()))
 
-    creation_time_formatted = creation_time.strftime('%Y-%m-%dT%H%M%S')
+    creation_time_formatted = creation_time.strftime('%Y-%m-%dT%H%M%S') # type: ignore
     file_name = unique_file(path + creation_time_formatted, 'log')
     
     # Rename old latest.log to <creation_date>.log (YYYY-MM-DDTHHmmss)
@@ -75,12 +74,14 @@ else:
         os.mkdir('./logs')
 
     # New latest.log
-    create_new_latest_log(path)
+    #create_new_latest_log(path)
 
+# Get current time
+current_time = datetime.datetime.now()
 
 # Initialize logging object
 logging.basicConfig(
-    filename = path + 'latest.log'
+    filename = path + current_time.strftime('%Y-%m-%dT%H%M%S') + '.log'
     , level = logging.INFO  # NOTE(jordan): Change log detail level here
     , format = '%(asctime)s.%(msecs)03d:%(levelname)s: %(message)s'
     , datefmt = '%Y-%m-%d %H:%M:%S'

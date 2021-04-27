@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/28/2021
+# Last Modified: 04/26/2021
 # Modified By: Jordan Williams
 ###
 
@@ -32,7 +32,7 @@ class Simulation:
             ]
         
         # Simulation constants
-        self.rng = np.random.default_rng() # TODO(jordan): Log this seed
+        self.rng = np.random.default_rng() # type: ignore # TODO(jordan): Log this seed
         self.graph = g
         self.old_index, self.new_index = 0, 1
         self.nodes = [[], []]   # type: List[List[Node]]
@@ -97,13 +97,14 @@ class Simulation:
         # Save data
         self.data = self.data.append(data_per_state, ignore_index = True)
     
+    def export_columns(self):
+        return(['day'].extend(self.all_states))
+
     def export_data(self):
         return(self.data.to_csv(line_terminator = '\n'))
 
     def generate_data_container(self):
-        cols = ['day']
-        cols.extend(self.all_states)
-        data = pd.DataFrame(dtype = int, columns = cols)
+        data = pd.DataFrame(dtype = int, columns = self.export_columns())
         return(data)
 
     def generate_nodes(self):
@@ -390,7 +391,7 @@ class Node:
             # Update attribute if it already exists in Node class
             for k, v, in args.items():
                 if hasattr(self, k):
-                    self.__dict__.update((k, v))
+                    setattr(self, k, v)
             
             # Recalculate dependents
             keys = args.keys()
@@ -562,8 +563,7 @@ class Test:
         else:
             for k, v, in args.items():
                 if hasattr(self, k):
-                    # Update attribute if it already exists in Simulation class
-                    self.__dict__.update((k, v))
+                    setattr(self, k, v)
             
             # Recalculate dependents
             keys = args.keys()

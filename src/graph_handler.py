@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 03/25/2021
+# Last Modified: 04/26/2021
 # Modified By: Jordan Williams
 ###
 
@@ -82,11 +82,11 @@ def wattsstrogatz_graph(args):
 
     # Remove the ring graph edges from our complete set of remaining edges to choose from
     remaining_edges.remove_edges_from(ring_graph.edges())
-    remaining_edges = np.asarray(remaining_edges.edges()).tolist()
+    remaining_edges = np.asarray(remaining_edges.edges()).tolist()  # type: ignore
 
     # Clone the ring_graph to a separate, independent graph g
     g = nx.compose(g, ring_graph)
-    ring_graph = np.asarray(ring_graph.edges()).tolist()
+    ring_graph = np.asarray(ring_graph.edges()).tolist()            # type: ignore
 
     # Initializations for edge count statistics
     edges_rewired_count = 0
@@ -220,7 +220,7 @@ def import_graph(graph_type = None, graph_args = None, rng = None, path = None):
         log.info("Failed to read graph from '%s'. Generating..." % (path))
 
         # If graph has an element of randomness
-        if(graph_definition['random'].lower()
+        if(graph_definition['random'].lower()   # type: ignore
             == 'true'):
             graph_args.append(rng)
 
