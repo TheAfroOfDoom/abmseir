@@ -3,7 +3,7 @@
 # Created: 01/25/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/20/2021
+# Last Modified: 04/27/2021
 # Modified By: Jordan Williams
 ###
 
@@ -344,7 +344,7 @@ class Simulation:
             self.exogenous_frequency    = 7 * self.cycles_per_day
 
             # Disease
-            self.r0 = 1.5
+            self.r0 = 2.75
 
         else:
             log.debug("Non-default args passed.")
@@ -368,7 +368,7 @@ class Simulation:
         mean_node_degree = self.get_mean_node_degree()
 
         # Calculate effective number of neighbors each node will interact with each cycle
-        active_neighbor_count = int(np.ceil(self.r0 + 10))  # type: ignore
+        active_neighbor_count = int(np.ceil(self.r0))  # type: ignore
         '''
         active_neighbor_count = self.population_size
         for initial_case, value in self.initial_cases.__dict__.items():

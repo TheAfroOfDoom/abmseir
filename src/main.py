@@ -3,7 +3,7 @@
 # Created: 12/06/2020
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/15/2021
+# Last Modified: 04/27/2021
 # Modified By: Jordan Williams
 ###
 
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     file.close()
 
     # Write simulation columns to header
-    simulation.data.to_csv(path, mode = 'a')
+    simulation.data.to_csv(path, mode = 'a', index=False)
 
     # Run simulation many times to average values
     rs, total_infecteds = [[], [], []], []
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         total_infecteds.append(len(g) - susceptible)    # type: ignore
 
         # Append to file
-        simulation.data.to_csv(path, mode = 'a', header = False)
+        simulation.data.to_csv(path, mode = 'a', header = False, index=False)
 
         # Save start time
         if(t0 is None):

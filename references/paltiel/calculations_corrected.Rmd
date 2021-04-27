@@ -31,7 +31,7 @@ initial.recovered <- 0
 total.n <- 1000
 initial.susceptible <- total.n - initial.infected - initial.exposed - initial.recovered
 
-r0 <- 1.5
+r0 <- 2.75
 exogenous.shocks <- "No"
 frequency.exogenous.shocks.per.day <- 7
 new.infections.per.shock <- 10

@@ -3,7 +3,7 @@
 # Created: 03/05/2021
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/16/2021
+# Last Modified: 04/27/2021
 # Modified By: Jordan Williams
 ###
 
@@ -11,6 +11,7 @@
 
 import glob
 import os
+import numpy as np
 import pandas as pd
 
 if __name__ == '__main__':
@@ -25,13 +26,15 @@ if __name__ == '__main__':
     latest_file = max(list_of_files, key=os.path.getctime)
     latest_file = latest_file[latest_file.rfind('\\'):]
     files = [latest_file if f == 'latest' else f for f in files]
+    print(files)
 
     data = pd.concat((pd.read_csv(path + f, comment = '#') for f in files))
+    print(data)
 
     dgbd = data.groupby('cycle')
     print('\nStats on %s:' % (files))
     
-    paltiel = 188
+    paltiel = 554
     tests = 0
 
     population_cols = ['susceptible', 'exposed', 'infected asymptomatic', 'infected symptomatic',
@@ -58,10 +61,15 @@ if __name__ == '__main__':
     data['r0'] = data['generation 2'] / data['generation 1']
     data['r1'] = data['generation 3'] / data['generation 2']
     data['r2'] = data['generation 4'] / data['generation 3']
+    data.replace({np.nan: 0}, inplace=True)
 
+    #print(data[['cycle', 'r0', 'r1', 'r2']][data.cycle == 239])
     drs = data[['cycle', 'r0', 'r1', 'r2']].groupby('cycle').mean().iloc[-1]
     r0 = drs.get('r0')
     r1 = drs.get('r1')
     r2 = drs.get('r2')
 
     print(f'R0: {r0} \nR1: {r1} \nR2: {r2}')
+
+    dm = data.groupby('cycle').mean()
+    dm.to_csv('%s/mean/%s' % (path, files[0]))
