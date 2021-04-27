@@ -50,7 +50,9 @@ class Server():
 
                 if(pid != -1 and msg is not None):
                     if(msg == "acknowledged"):
-                        log.info(f"ACK recv: [{addr[0]}:{addr[1]}.{pid}] ({self.sent_packets[addr][pid][:30]})")
+                        old_msg = self.sent_packets[addr][pid]
+                        longstr = "..." if len(old_msg) > 30 else ""
+                        log.info(f"ACK recv: [{addr[0]}:{addr[1]}.{pid}] ({old_msg[:30]}{longstr})")
                         #log.info(f"ACK recv: [{addr[0]}:{addr[1]}.{pid}]")
                         pass
                     else:
@@ -63,7 +65,8 @@ class Server():
                         packet_acknowledgement = generate_packet(pid, 'server', 'acknowledged')
                         conn.send(packet_acknowledgement)
 
-                        log.info(f"[{addr[0]}:{addr[1]}.{pid}.{packet_type}]: {msg[:30]}")
+                        longstr = "..." if len(msg) > 30 else ""
+                        log.info(f"[{addr[0]}:{addr[1]}.{pid}.{packet_type}]: {msg[:30]}{longstr}")
                 else:
                     log.error("[%s:%s] Bad packet received" % (addr[0], addr[1]))
 
@@ -125,12 +128,13 @@ class Server():
             self.next_pid = (self.next_pid + 1) % MAX_PID   # wrap next packet ID
 
             data = simreq.data.to_csv(index=False)
-            data = generate_packet(packet_id, 'server', data)
 
             # Initialize sent packets list if necessary
             if(self.sent_packets.get(client) is None):
                 self.sent_packets[client] = {}
             self.sent_packets[client][packet_id] = data
+            
+            data = generate_packet(packet_id, 'server', data)
             simreq.conn.send(data)
 
             # Remove simulation request from list
