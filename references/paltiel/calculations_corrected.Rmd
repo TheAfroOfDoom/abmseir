@@ -4,7 +4,7 @@ author: "Srikanth Aravamuthan"
 date: "8/4/2020"
 output: pdf_document
 modified_by: "Jordan Williams"
-modified_date: "3/26/2021"
+modified_date: "07/08/2021"
 ---
 
 ```{r setup, include=FALSE}
@@ -24,25 +24,26 @@ library(plotly)
 ```
 
 ```{r}
-initial.infected <- 1
+initial.infected <- 10
+total.n <- initial.susceptible + initial.infected
 initial.exposed <- 0
 initial.recovered <- 0
 
 total.n <- 1000
 initial.susceptible <- total.n - initial.infected - initial.exposed - initial.recovered
 
-r0 <- 2.75
-exogenous.shocks <- "No"
+r0 <- 3.5
+exogenous.shocks <- "Yes"
 frequency.exogenous.shocks.per.day <- 7
-new.infections.per.shock <- 10
+new.infections.per.shock <- 25
 days.incubation <- 3
 time.to.recovery <- 14
-per.asymptotics.advancing.to.symptoms <- 0#.3
-symptom.case.fatality.ratio <- 0#.0005
+per.asymptotics.advancing.to.symptoms <- 0.3
+symptom.case.fatality.ratio <- 0.0005
 frequency.screening <- "Symptoms Only"
-test.sensitivity <- 0 #0.8  # true positive
+test.sensitivity <- 0.8   # true positive
 test.cost <- 25
-test.specificity <- 1 #0.98 # true negative
+test.specificity <- 0.98  # true negative
 time.to.return.fps.from.isolation <- time.to.recovery
 confirmatory.test.cost <- 0
 
@@ -71,6 +72,9 @@ beta <- r0*(rho+sigma)
 delta <- (symptom.case.fatality.ratio/(1-symptom.case.fatality.ratio))*rho
 theta <- 1/(days.incubation*cycles.per.day)
 mu <- 1/(cycles.per.day*time.to.return.fps.from.isolation)
+lambda  <- 0  # natural birth rate
+notmu   <- 0  # natural per-capita death rate
+
 
 ```
 
@@ -78,58 +82,66 @@ mu <- 1/(cycles.per.day*time.to.return.fps.from.isolation)
 n.cycle <- 80*cycles.per.day
 
 mat <- matrix(c(0,initial.susceptible,0,initial.exposed,initial.infected,0,0,initial.recovered,0), nrow = 1)
-mat <- rbind(mat,
-             c(1,
-               max(0,mat[1,2]*(1-beta*(mat[1,5]/total.n))+mat[1,3]*mu),
-               max(0,mat[1,3]*(1-mu)),
-               max(0,mat[1,4]*(1-theta)+ beta*(mat[1,2]*mat[1,5]/total.n)),
-               max(0,mat[1,5]*(1-sigma-rho)+mat[1,4]*theta),
-               max(0,mat[1,6]*(1-delta-rho)+(mat[1,5]+mat[1,7])*sigma),
-               0,
-               max(0,mat[1,8]+(mat[1,5]+mat[1,6]+mat[1,7])*rho),
-               max(0,delta*mat[1,6]+mat[1,9]))
-             )
+colnames(mat) <- c('cycle','U','FP','E','A','S','TP','R','D')
 
 superspreader.event <- 0
 superspreader.event <- c(superspreader.event, 
                          (1:n.cycle %% frequency.exogenous.shocks == 0)*num.exogenous.shocks)
 
-for(i in 2:n.cycle) {
+f <- function(t, mat, dt) {
+  U <- mat[1]; FP <- mat[2]; E <- mat[3]; A <- mat[4]; S <- mat[5]; TP <- mat[6]; R <- mat[7]; D <- mat[8]; N <- total.n;
+  # Uold <- mat[i-1,2]; Aold <- mat[i-1,5]; TPold <- mat[i-1,7];
+  
+  newInfections <- beta*U*A/N
+  
+  dU  <- lambda - newInfections + mu*FP - test.specificity*U/cycles.per.test;
+  dFP <- -mu*FP + (1-test.specificity)*U/cycles.per.test;
+  dE  <- newInfections - theta*E;
+  dA  <- -(sigma+rho)*A + theta*E - (test.sensitivity/cycles.per.test)*A;
+  dS  <- -(delta+rho)*S + sigma*(A+TP);
+  dTP <- -(sigma+rho)*TP + (test.sensitivity/cycles.per.test)*TP;
+  dR  <- rho*(A+S+TP);
+  dD  <- delta*S;
+  
+  #return(mat + dt*matrix(c(dU,dFP,dE,dA,dS,dTP,dR,dD)))
+  return(matrix(c(dU,dFP,dE,dA,dS,dTP,dR,dD)))
+}
+
+dt <- 1; # 1 cycle
+
+for(i in 1:n.cycle) {
+  
+  # do the RK-4 steps (k1, k2, k3, k4)
+  k1 <- f(i, mat[i,2:9], dt)
+  k2 <- f(i + dt/2, mat[i,2:9] + 0.5*dt*k1, dt)
+  k3 <- f(i + dt/2, mat[i,2:9] + 0.5*dt*k2, dt)
+  k4 <- f(i + dt, mat[i,2:9] + dt*k3, dt)
+  
+  rk <- mat[i,2:9] + (1/6)*dt*(k1 + 2*k2 + 2*k3 + k4)
+  "
+  View(k1);
+  View(k2);
+  View(k3);
+  View(k4);
+  View(mat[i,2:9]);
+  View((1/6)*dt*(k1 + 2*k2 + 2*k3 + k4))
+  View(rk)
+  browser()
+  "
+  
+  # add exogenous cases after when putting k4 into actual matrix (superspreader.event[i+1]*new.infections.per.shock)
   mat <- rbind(mat,
              c(i,
-               
-                # S: Susceptible
-                # S = S-β(S*Ia/N) + μF - S_{i-1}(1-rn) - X
-               max(0,mat[i,2]*(1-beta*(mat[i,5]/total.n))+mat[i,3]*mu-mat[i-1,2]*(1-test.specificity)/cycles.per.test-superspreader.event[i+1]*new.infections.per.shock),
-               
-                # FP: False-Positives
-                # FP = (1-μ)F + S_{i-1}(1-rn)
-               max(0,mat[i,3]*(1-mu)+mat[i-1,2]*(1-test.specificity)/cycles.per.test),
-               
-                # E: Exposed
-                # E = (1-θ)E + β(S*Ia/N) + X
-               max(0,mat[i,4]*(1-theta)+beta*(mat[i,2]*mat[i,5]/total.n)+superspreader.event[i+1]*new.infections.per.shock),
-               
-                # Ia: Asympt.
-                # Ia = (1-σ-ρ)Ia + θE - (rp)Ia_{i-1}
-               max(0,mat[i,5]*(1-sigma-rho)+mat[i,4]*theta-mat[i-1,5]*test.sensitivity/cycles.per.test),
-               
-                # Is: Symptoms
-                # Is = (1-δ-ρ)Is + σ(Ia+TP)
-               max(0,mat[i,6]*(1-delta-rho)+(mat[i,5]+mat[i,7])*sigma),
-               
-                # TP: True Positives (Infected Asymptomatic, those who test positive)
-                # TP = (1-σ-ρ)TP + (rp)Ia_{i-1}
-               max(0,mat[i,7]*(1-sigma-rho)+mat[i-1,5]*test.sensitivity/cycles.per.test),
-               
-                # R: Recovered
-                # R = R + ρ(Ia+Is+TP)               
-               max(0,mat[i,8]+(mat[i,5]+mat[i,6]+mat[i,7])*rho),
-               
-                # D: Deceased
-                # D = D + δIs
-               max(0,delta*mat[i,6]+mat[i,9]))
+               max(0,rk[1] - superspreader.event[i+1]*new.infections.per.shock),
+               max(0,rk[2]),
+               max(0,rk[3] + superspreader.event[i+1]*new.infections.per.shock),
+               max(0,rk[4]),
+               max(0,rk[5]),
+               max(0,rk[6]),
+               max(0,rk[7]),
+               max(0,rk[8])
              )
+  )
 }
 
 mat <- cbind(mat, superspreader.event)
