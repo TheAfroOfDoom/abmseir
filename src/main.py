@@ -3,7 +3,7 @@
 # Created: 12/06/2020
 # Author: Jordan Williams (jwilliams13@umassd.edu)
 # -----
-# Last Modified: 04/27/2021
+# Last Modified: 07/21/2021
 # Modified By: Jordan Williams
 ###
 
@@ -23,6 +23,7 @@ from simulation import Simulation
 # Packages
 import datetime
 import numpy as np
+import os
 import pandas as pd
 import pprint
 
@@ -32,6 +33,11 @@ if __name__ == '__main__':
 
     # Import the active graph
     g = graph_handler.import_graph()
+
+    # Ensure data directory exists
+    data_directory = './output/data/'
+    if not os.path.exists(data_directory):
+        os.makedirs(data_directory)
 
     # Run simulation on current active graph
     simulation = Simulation(g)

@@ -24,21 +24,20 @@ library(plotly)
 ```
 
 ```{r}
-initial.infected <- 10
-total.n <- initial.susceptible + initial.infected
+initial.infected <- 1
 initial.exposed <- 0
 initial.recovered <- 0
 
 total.n <- 1000
 initial.susceptible <- total.n - initial.infected - initial.exposed - initial.recovered
 
-r0 <- 3.5
-exogenous.shocks <- "Yes"
+r0 <- 2.75
+exogenous.shocks <- "No"
 frequency.exogenous.shocks.per.day <- 7
 new.infections.per.shock <- 25
 days.incubation <- 3
 time.to.recovery <- 14
-per.asymptotics.advancing.to.symptoms <- 0.3
+per.asymptotics.advancing.to.symptoms <- 0#0.3
 symptom.case.fatality.ratio <- 0.0005
 frequency.screening <- "Symptoms Only"
 test.sensitivity <- 0.8   # true positive
@@ -118,16 +117,6 @@ for(i in 1:n.cycle) {
   k4 <- f(i + dt, mat[i,2:9] + dt*k3, dt)
   
   rk <- mat[i,2:9] + (1/6)*dt*(k1 + 2*k2 + 2*k3 + k4)
-  "
-  View(k1);
-  View(k2);
-  View(k3);
-  View(k4);
-  View(mat[i,2:9]);
-  View((1/6)*dt*(k1 + 2*k2 + 2*k3 + k4))
-  View(rk)
-  browser()
-  "
   
   # add exogenous cases after when putting k4 into actual matrix (superspreader.event[i+1]*new.infections.per.shock)
   mat <- rbind(mat,
