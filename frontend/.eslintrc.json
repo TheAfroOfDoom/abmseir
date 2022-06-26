@@ -1,0 +1,50 @@
+{
+    "env": {
+        "browser": true,
+        "es2021": true
+    },
+    "extends": [
+        "eslint:recommended",
+        "react-app",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:import/recommended",
+        "plugin:import/typescript",
+        "plugin:prettier/recommended"
+    ],
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "ecmaFeatures": {
+            "jsx": true
+        },
+        "ecmaVersion": "latest",
+        "sourceType": "module"
+    },
+    "plugins": ["@typescript-eslint"],
+    "rules": {
+        "prettier/prettier": [
+            "error",
+            {
+                "singleQuote": true,
+                "tabWidth": 4
+            }
+        ],
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-empty-interface": [
+            "error",
+            {
+                "allowSingleExtends": true
+            }
+        ],
+        "@typescript-eslint/no-unused-vars": ["error"],
+        "import/order": "error"
+    },
+    "settings": {
+        // "import/parsers": {
+        //     "@typescript-eslint/parser": [".ts", ".tsx"]
+        // },
+        // TODO: configure absolute imports
+        "import/resolver": {
+            "typescript": {}
+        }
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "population_size": 5000,
+    "initial_infected_count": 10,
+
+    "cycles_per_day": 3,
+    "time_horizon": 80,
+
+    "exogenous_amount": 5,
+    "exogenous_frequency": 7,
+
+    "r0": 1.5,
+
+    "time_to_infection_mean": 3,
+    "time_to_infection_min": 0,
+
+    "time_to_recovery_mean": 14,
+    "time_to_recovery_min": 0,
+
+    "symptoms_probability": 0.30,
+    "death_probability": 0.0005,
+
+    "specificity": 0.997,
+    "sensitivity": 0.9,
+    "cost": 25,
+    "results_delay": 1,
+    "rate": 0
+}

@@ -1,0 +1,57 @@
+{
+    "graph": {
+        "active": {
+            "type": "complete",
+            "properties": [1000]
+        },
+        "definitions": {
+            "complete": {
+                "random": "false",
+                "properties": [
+                    {
+                        "name": "nodes",
+                        "key": "n"
+                    }
+                ]
+            },
+            "ring": {
+                "random": "false",
+                "properties": [
+                    {
+                        "name": "nodes",
+                        "key": "n"
+                    },
+                    {
+                        "name": "node_degree",
+                        "key": "k"
+                    }
+                ]
+            },
+            "wattsstrogatz": {
+                "title": "Watts-Strogatz",
+                "random": "true",
+                "properties": [
+                    {
+                        "name": "nodes",
+                        "key": "n"
+                    },
+                    {
+                        "name": "node_degree",
+                        "key": "k"
+                    },
+                    {
+                        "name": "diameter",
+                        "key": "d"
+                    }
+                ]
+            }
+        },
+        "directory": "graphs/",
+        "extension": ".adjlist"
+    },
+    "output": {
+        "data": {
+            "directory": "output/data"
+        }
+    }
+}

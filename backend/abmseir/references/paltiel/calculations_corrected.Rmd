@@ -1,0 +1,218 @@
+---
+title: "Paltiel Calculations (Corrected w/SEIR model)"
+author: "Srikanth Aravamuthan"
+date: "8/4/2020"
+output: pdf_document
+modified_by: "Jordan Williams"
+modified_date: "07/08/2021"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  # cache = TRUE, 
+  message = FALSE,
+  warning = FALSE, 
+  fig.width = 10
+)
+
+library(tidyverse)
+library(plotly)
+
+```
+
+```{r}
+initial.infected <- 1
+initial.exposed <- 0
+initial.recovered <- 0
+
+total.n <- 1000
+initial.susceptible <- total.n - initial.infected - initial.exposed - initial.recovered
+
+r0 <- 2.75
+exogenous.shocks <- "No"
+frequency.exogenous.shocks.per.day <- 7
+new.infections.per.shock <- 25
+days.incubation <- 3
+time.to.recovery <- 14
+per.asymptotics.advancing.to.symptoms <- 0#0.3
+symptom.case.fatality.ratio <- 0.0005
+frequency.screening <- "Symptoms Only"
+test.sensitivity <- 0.8   # true positive
+test.cost <- 25
+test.specificity <- 0.98  # true negative
+time.to.return.fps.from.isolation <- time.to.recovery
+confirmatory.test.cost <- 0
+
+```
+
+```{r}
+num.exogenous.shocks <- case_when(
+  exogenous.shocks == "Yes" ~ 1,
+  exogenous.shocks == "No" ~ 0
+)
+cycles.per.day <- 3
+frequency.exogenous.shocks <- cycles.per.day*frequency.exogenous.shocks.per.day
+cycles.per.test <- case_when(
+  frequency.screening == "Daily" ~ 1*cycles.per.day,
+  frequency.screening == "Every 2 Days" ~ 2*cycles.per.day,
+  frequency.screening == "Every 3 Days" ~ 3*cycles.per.day,
+  frequency.screening == "Weekly" ~ 7*cycles.per.day,
+  frequency.screening == "Every 2 Weeks" ~ 14*cycles.per.day,
+  frequency.screening == "Every 3 Weeks" ~ 21*cycles.per.day,
+  frequency.screening == "Every 4 Weeks" ~ 28*cycles.per.day,
+  frequency.screening == "Symptoms Only" ~ 2 ^ .Machine$double.digits
+)
+rho <- 1/(time.to.recovery*cycles.per.day)
+sigma <- rho*(per.asymptotics.advancing.to.symptoms/(1-per.asymptotics.advancing.to.symptoms))
+beta <- r0*(rho+sigma)
+delta <- (symptom.case.fatality.ratio/(1-symptom.case.fatality.ratio))*rho
+theta <- 1/(days.incubation*cycles.per.day)
+mu <- 1/(cycles.per.day*time.to.return.fps.from.isolation)
+lambda  <- 0  # natural birth rate
+notmu   <- 0  # natural per-capita death rate
+
+
+```
+
+```{r}
+n.cycle <- 80*cycles.per.day
+
+mat <- matrix(c(0,initial.susceptible,0,initial.exposed,initial.infected,0,0,initial.recovered,0), nrow = 1)
+colnames(mat) <- c('cycle','U','FP','E','A','S','TP','R','D')
+
+superspreader.event <- 0
+superspreader.event <- c(superspreader.event, 
+                         (1:n.cycle %% frequency.exogenous.shocks == 0)*num.exogenous.shocks)
+
+f <- function(t, mat, dt) {
+  U <- mat[1]; FP <- mat[2]; E <- mat[3]; A <- mat[4]; S <- mat[5]; TP <- mat[6]; R <- mat[7]; D <- mat[8]; N <- total.n;
+  # Uold <- mat[i-1,2]; Aold <- mat[i-1,5]; TPold <- mat[i-1,7];
+  
+  newInfections <- beta*U*A/N
+  
+  dU  <- lambda - newInfections + mu*FP - test.specificity*U/cycles.per.test;
+  dFP <- -mu*FP + (1-test.specificity)*U/cycles.per.test;
+  dE  <- newInfections - theta*E;
+  dA  <- -(sigma+rho)*A + theta*E - (test.sensitivity/cycles.per.test)*A;
+  dS  <- -(delta+rho)*S + sigma*(A+TP);
+  dTP <- -(sigma+rho)*TP + (test.sensitivity/cycles.per.test)*TP;
+  dR  <- rho*(A+S+TP);
+  dD  <- delta*S;
+  
+  #return(mat + dt*matrix(c(dU,dFP,dE,dA,dS,dTP,dR,dD)))
+  return(matrix(c(dU,dFP,dE,dA,dS,dTP,dR,dD)))
+}
+
+dt <- 1; # 1 cycle
+
+for(i in 1:n.cycle) {
+  
+  # do the RK-4 steps (k1, k2, k3, k4)
+  k1 <- f(i, mat[i,2:9], dt)
+  k2 <- f(i + dt/2, mat[i,2:9] + 0.5*dt*k1, dt)
+  k3 <- f(i + dt/2, mat[i,2:9] + 0.5*dt*k2, dt)
+  k4 <- f(i + dt, mat[i,2:9] + dt*k3, dt)
+  
+  rk <- mat[i,2:9] + (1/6)*dt*(k1 + 2*k2 + 2*k3 + k4)
+  
+  # add exogenous cases after when putting k4 into actual matrix (superspreader.event[i+1]*new.infections.per.shock)
+  mat <- rbind(mat,
+             c(i,
+               max(0,rk[1] - superspreader.event[i+1]*new.infections.per.shock),
+               max(0,rk[2]),
+               max(0,rk[3] + superspreader.event[i+1]*new.infections.per.shock),
+               max(0,rk[4]),
+               max(0,rk[5]),
+               max(0,rk[6]),
+               max(0,rk[7]),
+               max(0,rk[8])
+             )
+  )
+}
+
+mat <- cbind(mat, superspreader.event)
+
+```
+
+```{r}
+names.df <- c("Cycle","Susceptible","FP","Exposed","Asympt","Symptoms","TP","Recovered","Dead","Superspreader Event")
+df <- 
+  mat %>% 
+  as_tibble() %>% 
+  rename_all(~names.df) %>% 
+  mutate(`Persons Tested` = (lag(Susceptible,1,NA)+lag(Asympt,1,NA))/cycles.per.test,
+         `Total TPs` = lag(Asympt,2,NA)*test.sensitivity/cycles.per.test,
+         `Total FPs` = lag(Susceptible,2,NA)*(1-test.specificity)/cycles.per.test,
+         `Total TNs` = lag(Susceptible,2,NA)*test.specificity/cycles.per.test,
+         `Total FNs` = lag(Asympt,2,NA)*(1-test.sensitivity)/cycles.per.test) %>% 
+  mutate(Day = Cycle/cycles.per.day,
+         `True Positive` = TP,
+         Symptoms = Symptoms,
+         `False Positive` = FP,
+         Total = TP+Symptoms+FP) %>% 
+  mutate(`New Infections` = lag(Asympt,1,NA)*beta*lag(Susceptible,1,NA)/(total.n),
+         `New Infections` = ifelse(Cycle>1,
+                      `New Infections`+pmin(`Superspreader Event`*new.infections.per.shock,lag(Susceptible,1,NA)),
+                      `New Infections`),
+         `New Infections` = ifelse(is.na(`New Infections`),0,`New Infections`),
+         `Cumulative Infections` = cumsum(`New Infections`)+initial.infected+initial.recovered+initial.exposed,
+         `%Cumulative Infections` = `Cumulative Infections`/total.n)
+
+```
+
+```{r}
+sum.stat <- 
+  df %>% 
+  slice(2:n()) %>% 
+  summarize(`Total Persons Tested in 80 days` = sum(`Persons Tested`, na.rm = TRUE),
+            `Total False Positives` = sum(`Total FPs`, na.rm = TRUE),
+            `Average Isolation Unit Census` = mean(`Total`, na.rm = TRUE),
+            `Average %TP in Isolation` = 1-(mean(`False Positive`, na.rm = TRUE)/mean(`Total`, na.rm = TRUE)),
+            `Total testing cost` = `Total Persons Tested in 80 days`*test.cost,
+            `Total Infections` = last(`Cumulative Infections`))
+
+```
+
+```{r}
+df %>% 
+  select(Day, `True Positive`, Symptoms, `False Positive`) %>% 
+  pivot_longer(`True Positive`:`False Positive`, names_to = "Group", values_to = "Value") %>% 
+  mutate(Group = as.factor(Group),
+         Group = forcats::fct_relevel(Group, levels = c("True Positive", "Symptoms", "False Positive"))) %>% 
+  group_by(Day) %>% 
+  arrange(Group) %>% 
+  mutate(`New Students` = sum(Value),
+         Students = cumsum(Value)) %>% 
+  plot_ly(x = ~Day, 
+          y = ~Students, 
+          color = ~Group, 
+          colors = "RdYlBu",
+          alpha = 0.7,
+          type = "scatter",
+          mode = "lines",
+          fill = 'tonexty',
+          text = ~paste0("</br>", Group,": ", round(Value,3),
+                        "</br>Students: ", round(`New Students`,3),
+                        "</br>", Group," (Percentage of Students): ", 
+                        "</br>", scales::percent(Value/`New Students`, accuracy = 0.1)), 
+          hoverinfo = "text") %>% 
+  layout(title = "Isolation Unit Occupancy") %>% 
+  layout(yaxis = list(title = "Number of Students")) %>% 
+      layout(autosize = TRUE, 
+             margin = list(l = 75,
+                           r = 75,
+                           b = 75,
+                           t = 75,
+                           pad = 10)) %>%
+      config(displaylogo = FALSE)
+  
+```
+
+```{r}
+df <- df[!(df$Cycle %in% c(0)), ] # remove 0-th row (initial starting condition)
+df$Cycle <- df$Cycle - 1          # normalize Cycles to be 0:239 instead of 1:240
+write.csv(df, "F:\\Dropbox\\Boxifier\\school\\_MTH465\\Homework\\Project\\Post\\references\\paltiel\\corrected_data.csv", row.names=FALSE)
+```

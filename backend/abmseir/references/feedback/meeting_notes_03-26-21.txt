@@ -1,0 +1,32 @@
+Notes:
+
+* showed progress: time discretization (TD), slight UI cleanup
+    - I was unsure where to look into next since TD didn't fix accuracy
+    - TD did, however, give a proper limit of sorts to cycles/day as cycles -> inf
+
+* showed my gut pointing to Paltiel's method/governing equations, specifically how they're calculating new infections
+    - turns out they're overestimating cases because they are using a simply wrong denominator in the following formula:
+    (look at dI/dt)
+    https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_model_without_vital_dynamics
+    - instead of N = 1500 = pop. size (constant), they are only using the total pool of people relating to infectious spread (Uninfected/Sus. + Exposed + Infected Asymptomatic).
+    - this led to an overestimate and we agreed that they're just doing it wrong in comparison to normal SEIR model
+    - will fix their code by replacing (U + A + E) with (N) and comparing numbers to our model
+        * hopefully this fixes accuracy, our values were coming out lower than theirs anyway
+
+* we are going to email them since (we think) it's a pretty bad error in their methodology, ask them why they removed isolated pops from eqn.
+    - also mention the symptom rate typo
+
+* our transmission_rate calculation is correct, since `beta = (contact_rate) * (transmission_probability)` according to this page:
+    - https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology#The_SIR_model_2
+
+= = = = = = = = = = = = = = = = = = = = 
+* i did correct their code and compare results with our model, results can be found here:
+    - https://docs.google.com/spreadsheets/d/1ErLkdJMir4k1MwdIujvC5hI-at7fetXr7mKRQX639f0/edit?ts=6025a712#gid=244338142
+    - Summary:
+        * numbers line up extremely well with no testing, with/without exogenous
+            - 334:326 = -2.4% error
+            - 765:767 = 0.26% error)
+        * a bit more of an error when (weekly) testing is enabled
+            - 261:225 = -13.79% error
+            - 285:233 = -18.21% error
+            - I think this has to do with the fact that we have a flat quarantine of 14 days (mean recovery time) regardless of how long someone has already had the infection, while Paltiel essentially just has someone quarantine for the remainder of their infectious period (until recovery time reaches 0)

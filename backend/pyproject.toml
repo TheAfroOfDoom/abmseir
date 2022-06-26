@@ -1,0 +1,2 @@
+[tool.pylint.MASTER]
+init-hook = "import runpy; runpy.run_path('./api/config/pylint_init_hook.py');'"

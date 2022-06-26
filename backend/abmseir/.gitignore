@@ -1,0 +1,47 @@
+# Directories
+assets/
+logs/*
+Submission/
+
+# Mathematica Notebook files
+*.nb
+
+# Non-final feedback files
+*feedback.pdf
+proposal_feedback.txt
+
+# Report files
+report/*.pdf
+report/*.synctex.gz
+
+# Specific graph types to save on space
+graphs/complete/
+graphs/ring/
+
+# Specific data
+Fall 2020*
+output/data/*
+
+# Executable outputs
+*.spec
+dist/
+build/
+
+# Batch scripts
+*.bat
+
+# Python
+# # Test files
+local/
+src/*test.py
+tempCodeRunnerFile.py
+
+# # Cache files
+*.cpython*
+
+# # Build files
+*.egg-info/
+
+# R meta files
+*.Rhistory
+*.RData
