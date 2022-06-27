@@ -4,7 +4,8 @@ An [agent-based](https://en.wikipedia.org/wiki/Agent-based_model) approach to si
 *In layman:* a simulation of an epidemic to analyze the effects of:
 * various parameters on the total number of infected cases and deaths
 * considering independent/individual nodes (agents) in each state, as opposed to performing operations population-wide
-  * This is how S(E)IR models are traditionally researched
+  * Traditional S(E)IR models research under a framework of operations against an entire population.
+    (They calculate population-by-population, not considering individual nodes.)
 
 ## **Installation**
 ### Prerequisites
