@@ -41,12 +41,12 @@ You can access the frontend at [localhost:3000](http://localhost:3000).
 
 ## Components
 
-### frontend
+### **frontend**
 Based off of [Create React App](https://github.com/facebook/create-react-app).
 
 Code located at `/frontend`.
 
-### api
+### **api**
 [Django Rest Framework](https://www.django-rest-framework.org/) API that the frontend talks to to receive user/simulation/graph data and run simulations.
 
 Accessible by default on port `8000`.
@@ -55,15 +55,15 @@ Code located at `/backend/api`.
 
 Initially based off of [p8ul's DRF boilerplate](https://github.com/p8ul/django-rest-framework-boilerplate).
 
-### abseir
+### **abseir**
 Python package that does the actual simulation/graph-related calculations.
 
 Code located at `/backend/abseir`.
 
-### database
+### **database**
 Postgres version 11.6 (docker image `postgres:11.6`).
 
-### docs
+### **docs**
 API documentation. Accessible by default on port `8001`.
 
 Code located at `/backend/docs`.
