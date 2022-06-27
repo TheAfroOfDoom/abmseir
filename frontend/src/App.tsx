@@ -21,7 +21,7 @@ const theme = createTheme(createTheme(), {
     },
 });
 
-export const navBarLinks = [{ name: 'GRAPH', linkProps: { href: '/graph' } }];
+export const navBarPaths = [{ name: 'GRAPH', pathProps: { href: '/graph' } }];
 
 const App: React.FC = (): JSX.Element => {
     const allRoutes = {

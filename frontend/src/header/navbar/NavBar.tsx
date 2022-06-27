@@ -13,7 +13,7 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import AdbIcon from '@mui/icons-material/Adb';
 import Link from '@mui/material/Link';
-import { navBarLinks } from './../../App';
+import { navBarPaths } from './../../App';
 
 const settings = ['Profile', 'Account', 'Dashboard', 'Logout'];
 
@@ -98,16 +98,16 @@ const NavBar: React.FC = (): JSX.Element => {
                                 display: { xs: 'block', md: 'none' },
                             }}
                         >
-                            {navBarLinks.map((link) => (
+                            {navBarPaths.map((path) => (
                                 <Link
-                                    key={link.name}
+                                    key={path.name}
                                     textAlign="center"
                                     underline="none"
                                     color="inherit"
-                                    {...link.linkProps}
+                                    {...path.pathProps}
                                 >
                                     <MenuItem onClick={handleCloseNavMenu}>
-                                        {link.name}
+                                        {path.name}
                                     </MenuItem>
                                 </Link>
                             ))}
@@ -145,18 +145,18 @@ const NavBar: React.FC = (): JSX.Element => {
                             display: { xs: 'none', md: 'flex' },
                         }}
                     >
-                        {navBarLinks.map((link) => (
+                        {navBarPaths.map((path) => (
                             <Button
-                                key={link.name}
+                                key={path.name}
                                 onClick={handleCloseNavMenu}
-                                {...link.linkProps}
+                                {...path.pathProps}
                                 sx={{
                                     my: 2,
                                     color: 'white',
                                     display: 'block',
                                 }}
                             >
-                                {link.name}
+                                {path.name}
                             </Button>
                         ))}
                     </Box>

@@ -11,12 +11,12 @@ import ListItemText from '@mui/material/ListItemText';
 
 export const SideBar: React.FC<{
     baseUrl: string;
-    sideBarLinks: {
+    sideBarPaths: {
         text: string;
-        link: string;
+        path: string;
         icon: JSX.Element;
     }[];
-}> = ({ baseUrl, sideBarLinks }): JSX.Element => {
+}> = ({ baseUrl, sideBarPaths }): JSX.Element => {
     return (
         <Box
             sx={{
@@ -29,14 +29,14 @@ export const SideBar: React.FC<{
             }}
         >
             <List>
-                {sideBarLinks.map((sideBarLink) => (
+                {sideBarPaths.map((sideBarPath) => (
                     <Link
-                        key={sideBarLink.text}
+                        key={sideBarPath.text}
                         color="inherit"
                         underline="none"
-                        href={`${baseUrl}${sideBarLink.link}`}
+                        href={`${baseUrl}/${sideBarPath.path}`}
                     >
-                        <ListItem key={sideBarLink.text} disablePadding>
+                        <ListItem key={sideBarPath.text} disablePadding>
                             <ListItemButton
                                 sx={{ paddingLeft: 3, paddingRight: 3 }}
                             >
@@ -46,9 +46,9 @@ export const SideBar: React.FC<{
                                         paddingRight: 2,
                                     }}
                                 >
-                                    {sideBarLink.icon}
+                                    {sideBarPath.icon}
                                 </ListItemIcon>
-                                <ListItemText primary={sideBarLink.text} />
+                                <ListItemText primary={sideBarPath.text} />
                             </ListItemButton>
                         </ListItem>
                     </Link>
