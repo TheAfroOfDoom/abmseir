@@ -4,10 +4,10 @@ ENV PYTHONUNBUFFERED 1
 
 # Install local development package
 # RUN pip install --upgrade pip
-COPY ./abmseir/requirements.txt requirements.txt
+COPY ./abseir/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
-COPY ./abmseir/src /abmseir
-RUN pip install -e /abmseir
+COPY ./abseir/src /abseir
+RUN pip install -e /abseir
 
 # Allows docker to cache installed dependencies between builds
 COPY ./requirements.txt requirements.txt

@@ -3,7 +3,7 @@
 # Created: 03/24/2022
 # Author: Jordan Williams (jwilliams4465@gmail.com)
 # -----
-# Last Modified: 06/02/2022
+# Last Modified: 06/26/2022
 # Modified By: Jordan Williams
 ###
 
@@ -13,7 +13,7 @@ from typing import Callable
 import networkx as nx
 import numpy as np
 import pytest
-from abmseir import grapher
+from abseir import grapher
 
 GRAPH_INPUT_ORDERS = [
     2,

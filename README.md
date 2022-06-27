@@ -51,10 +51,10 @@ Code located at `/backend/api`.
 
 Initially based off of [p8ul's DRF boilerplate](https://github.com/p8ul/django-rest-framework-boilerplate).
 
-### abmseir
+### abseir
 Python package that does the actual simulation/graph-related calculations.
 
-Code located at `/backend/abmseir`.
+Code located at `/backend/abseir`.
 
 ### database
 Postgres version 11.6 (docker image `postgres:11.6`).
@@ -67,5 +67,5 @@ Code located at `/backend/docs`.
 ---
 
 ## pretty :)
-![Strogatz-Watts Graph](backend/abmseir/report/figures/ws/graph.png)
+![Strogatz-Watts Graph](backend/abseir/report/figures/ws/graph.png)
 Strogatz-Watts Graph with 1500 nodes, mean node degree 43, and diameter 3.

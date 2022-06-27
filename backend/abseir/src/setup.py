@@ -1,13 +1,13 @@
 from setuptools import setup
 
 setup(
-    name="abmseir",
-    version="0.1.0",
-    description="Simulates the SEIR model using an individual agent model",
+    name="abseir",
+    version="0.2.0",
+    description="Agent-based SEIR",
     license="MIT",
-    packages=["abmseir"],
+    packages=["abseir"],
     author="TheAfroOfDoom",
     author_email="theafroofdoom@gmail.com",
-    keywords=["abmseir"],
+    keywords=["abseir"],
     url="https://github.com/theafroofdoom",
 )

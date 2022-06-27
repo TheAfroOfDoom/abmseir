@@ -3,7 +3,7 @@
 # Created: 01/23/2021
 # Author: Jordan Williams (theafroofdoom@gmail.com)
 # -----
-# Last Modified: 06/07/2022
+# Last Modified: 06/26/2022
 # Modified By: Jordan Williams
 ###
 
@@ -20,7 +20,7 @@ from typing import Callable, Union
 import networkx as nx
 import numpy as np
 
-from abmseir.log_handler import logging as log
+from abseir.log_handler import logging as log
 
 
 # TODO: remove this once logging is fixed

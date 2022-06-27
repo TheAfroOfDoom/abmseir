@@ -52,7 +52,7 @@ class CirculantGraph(Graph):
     }
     ```
 
-    Generator: :func:`~abmseir.grapher.circulant_graph`
+    Generator: :func:`~abseir.grapher.circulant_graph`
     (https://en.wikipedia.org/wiki/Circulant_graph)
     """
 
@@ -85,7 +85,7 @@ class CompleteGraph(Graph):
     }
     ```
 
-    Generator: :func:`~abmseir.grapher.complete_graph`
+    Generator: :func:`~abseir.grapher.complete_graph`
     (https://en.wikipedia.org/wiki/Complete_graph)
     """
 

@@ -7,7 +7,7 @@ import operator
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
 
-from abmseir import grapher
+from abseir import grapher
 
 # from .permissions import IsUserOrReadOnly
 from .models import CirculantGraph, CompleteGraph
