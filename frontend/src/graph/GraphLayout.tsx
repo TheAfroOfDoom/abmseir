@@ -20,13 +20,6 @@ const GraphLayout: React.FC = (): JSX.Element => {
                 <AddCircleOutlineOutlinedIcon sx={{ color: 'primary.main' }} />
             ),
         },
-        {
-            text: 'TEST',
-            link: '/test',
-            icon: (
-                <AddCircleOutlineOutlinedIcon sx={{ color: 'primary.main' }} />
-            ),
-        },
     ];
 
     return (
