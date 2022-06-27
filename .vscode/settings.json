@@ -7,5 +7,9 @@
     "**/.DS_Store": true,
     "backend": true,
     "frontend": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/migrations": true
   }
 }
