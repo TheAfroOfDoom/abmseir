@@ -35,6 +35,8 @@ yarn start
 
 If you prefer [npm](https://www.npmjs.com/), you can use `npm install` and `npm start` instead.
 
+You can access the frontend at [localhost:3000](http://localhost:3000).
+
 ---
 
 ## Components
@@ -46,6 +48,8 @@ Code located at `/frontend`.
 
 ### api
 [Django Rest Framework](https://www.django-rest-framework.org/) API that the frontend talks to to receive user/simulation/graph data and run simulations.
+
+Accessible by default on port `8000`.
 
 Code located at `/backend/api`.
 
@@ -60,7 +64,7 @@ Code located at `/backend/abseir`.
 Postgres version 11.6 (docker image `postgres:11.6`).
 
 ### docs
-API documentation.
+API documentation. Accessible by default on port `8001`.
 
 Code located at `/backend/docs`.
 
