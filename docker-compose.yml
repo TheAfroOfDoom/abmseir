@@ -12,7 +12,7 @@ services:
     command: bash -c "python wait_for_postgres.py && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/backend/src
-      - ./backend/abmseir/src:/backend/abmseir
+      - ./backend/abseir/src:/backend/abseir
     ports:
       - "8000:8000"
     depends_on:
