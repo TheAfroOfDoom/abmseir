@@ -62,11 +62,11 @@ const GraphCreate = <TFieldValues extends FieldValues = FieldValues>({
                 {Object.entries(fields)
                     .filter(([key, field]) => field.read_only === false)
                     .map(([key, field]) => {
-                        const _key = key as FieldPath<TFieldValues>;
+                        const key_ = key as FieldPath<TFieldValues>;
                         return (
                             <Grid key={`graph-create-view-field-${key}`} item>
                                 <Controller
-                                    name={_key}
+                                    name={key_}
                                     control={control}
                                     render={({
                                         field: { onChange, value },
