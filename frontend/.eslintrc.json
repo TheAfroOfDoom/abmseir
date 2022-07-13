@@ -9,7 +9,7 @@
         "plugin:@typescript-eslint/recommended",
         "plugin:import/recommended",
         "plugin:import/typescript",
-        "plugin:prettier/recommended"
+        "prettier"
     ],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
@@ -21,28 +21,26 @@
     },
     "plugins": ["@typescript-eslint"],
     "rules": {
-        "prettier/prettier": [
-            "error",
-            {
-                "singleQuote": true,
-                "tabWidth": 4
-            }
-        ],
+        // These imports (`default` -- `no-named-as-default-member`) are super slow
+        "import/default": "off",
+        "import/namespace": "off", // https://github.com/import-js/eslint-plugin-import/issues/2340
+        "import/no-named-as-default": "off",
+        "import/no-named-as-default-member": "off",
+        "import/order": "error",
+
         "no-unused-vars": "off",
+
         "@typescript-eslint/no-empty-interface": [
             "error",
             {
                 "allowSingleExtends": true
             }
         ],
-        "@typescript-eslint/no-unused-vars": ["error"],
-        "import/order": "error"
+        "@typescript-eslint/no-unused-vars": ["error"]
     },
     "settings": {
-        // "import/parsers": {
-        //     "@typescript-eslint/parser": [".ts", ".tsx"]
-        // },
         // TODO: configure absolute imports
+        "import/extensions": [".ts", ".tsx"],
         "import/resolver": {
             "typescript": {}
         }

@@ -1,4 +1,6 @@
 {
+    "eslint.lintTask.options": ". --cache",
+
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.expand": true,
     "explorer.fileNesting.patterns": {
