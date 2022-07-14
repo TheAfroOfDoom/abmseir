@@ -81,7 +81,7 @@ const GraphCreateComplete: React.FC = (): JSX.Element => {
     return (
         <GraphCreate<typeof fields>
             mutation={mutation}
-            useForm={{ handleSubmit: handleSubmit, control: control }}
+            useForm={{ handleSubmit: handleSubmit }}
             fields={fields}
         />
     );

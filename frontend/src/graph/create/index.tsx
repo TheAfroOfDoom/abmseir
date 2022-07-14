@@ -1,7 +1,6 @@
 import React from 'react';
 import { UseMutationResult } from 'react-query';
 import {
-    Control,
     FieldValues,
     UseFormHandleSubmit,
     SubmitHandler,
@@ -15,19 +14,17 @@ import { Graph } from '../../calls';
 
 const GraphCreate = <TFieldValues extends FieldValues = FieldValues>({
     mutation,
-    useForm: { handleSubmit, control },
+    useForm: { handleSubmit },
     fields,
 }: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mutation: UseMutationResult<Graph, unknown, any>;
     useForm: {
         handleSubmit: UseFormHandleSubmit<TFieldValues>;
-        control: Control<TFieldValues>;
     };
     fields: TFieldValues;
 }): JSX.Element => {
     const onSubmit: SubmitHandler<TFieldValues> = (data) => {
-        console.log(data);
         mutation.mutate(data);
     };
 
