@@ -11,7 +11,21 @@ import Typography from '@mui/material/Typography';
 import { postCompleteGraph } from '../../calls';
 import GraphCreate from '.';
 
+interface ISnackbarData {
+    visible: boolean;
+    title: string;
+    text: string;
+    type: 'success' | 'error';
+}
+
 const GraphCreateComplete: React.FC = (): JSX.Element => {
+    const [snackbarData, setSnackbarData] = React.useState<ISnackbarData>({
+        visible: false,
+        title: '',
+        text: '',
+        type: 'error',
+    });
+
     const queryClient = useQueryClient();
     const key = 'complete_graphs';
     const mutation = useMutation(
@@ -20,6 +34,23 @@ const GraphCreateComplete: React.FC = (): JSX.Element => {
             mutationKey: key,
             onSuccess: () => {
                 queryClient.invalidateQueries(key);
+            },
+            onSettled: (data, error: any) => {
+                if (error) {
+                    setSnackbarData({
+                        visible: true,
+                        title: 'Error generating new Complete Graph',
+                        text: error.response.data[0],
+                        type: 'error',
+                    });
+                } else {
+                    setSnackbarData({
+                        visible: true,
+                        title: 'Complete Graph generated',
+                        text: '',
+                        type: 'success',
+                    });
+                }
             },
         }
     );
@@ -83,6 +114,8 @@ const GraphCreateComplete: React.FC = (): JSX.Element => {
             mutation={mutation}
             useForm={{ handleSubmit: handleSubmit }}
             fields={fields}
+            snackbarData={snackbarData}
+            setSnackbarData={setSnackbarData}
         />
     );
 };

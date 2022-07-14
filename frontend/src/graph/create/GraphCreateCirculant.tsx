@@ -23,7 +23,21 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import { postCirculantGraph } from '../../calls';
 import GraphCreate from '.';
 
+interface ISnackbarData {
+    visible: boolean;
+    title: string;
+    text: string;
+    type: 'success' | 'error';
+}
+
 const GraphCreateCirculant: React.FC = (): JSX.Element => {
+    const [snackbarData, setSnackbarData] = React.useState<ISnackbarData>({
+        visible: false,
+        title: '',
+        text: '',
+        type: 'error',
+    });
+
     const queryClient = useQueryClient();
     const key = 'circulant_graphs';
     const mutation = useMutation(
@@ -33,6 +47,23 @@ const GraphCreateCirculant: React.FC = (): JSX.Element => {
             mutationKey: key,
             onSuccess: () => {
                 queryClient.invalidateQueries(key);
+            },
+            onSettled: (data, error: any) => {
+                if (error) {
+                    setSnackbarData({
+                        visible: true,
+                        title: 'Error generating new Circulant Graph',
+                        text: error.response.data[0],
+                        type: 'error',
+                    });
+                } else {
+                    setSnackbarData({
+                        visible: true,
+                        title: 'Circulant Graph generated',
+                        text: '',
+                        type: 'success',
+                    });
+                }
             },
         }
     );
@@ -190,6 +221,8 @@ const GraphCreateCirculant: React.FC = (): JSX.Element => {
             mutation={mutation}
             useForm={{ handleSubmit: handleSubmit }}
             fields={fields}
+            snackbarData={snackbarData}
+            setSnackbarData={setSnackbarData}
         />
     );
 };

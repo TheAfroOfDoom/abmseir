@@ -6,16 +6,28 @@ import {
     SubmitHandler,
 } from 'react-hook-form';
 
+import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
+import Snackbar from '@mui/material/Snackbar';
 
 import { Graph } from '../../calls';
+
+interface ISnackbarData {
+    visible: boolean;
+    title: string;
+    text: string;
+    type: 'success' | 'error';
+}
 
 const GraphCreate = <TFieldValues extends FieldValues = FieldValues>({
     mutation,
     useForm: { handleSubmit },
     fields,
+    snackbarData,
+    setSnackbarData,
 }: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mutation: UseMutationResult<Graph, unknown, any>;
@@ -23,9 +35,21 @@ const GraphCreate = <TFieldValues extends FieldValues = FieldValues>({
         handleSubmit: UseFormHandleSubmit<TFieldValues>;
     };
     fields: TFieldValues;
+    snackbarData: ISnackbarData;
+    setSnackbarData: any;
 }): JSX.Element => {
     const onSubmit: SubmitHandler<TFieldValues> = (data) => {
         mutation.mutate(data);
+    };
+
+    const handleClose = (
+        event?: React.SyntheticEvent | Event,
+        reason?: string
+    ) => {
+        if (reason === 'clickaway') {
+            return;
+        }
+        setSnackbarData({ ...snackbarData, visible: false });
     };
 
     return (
@@ -57,7 +81,21 @@ const GraphCreate = <TFieldValues extends FieldValues = FieldValues>({
                 >
                     Submit
                 </Button>
-            </Container>{' '}
+            </Container>
+            <Snackbar
+                open={snackbarData.visible}
+                autoHideDuration={6000}
+                onClose={handleClose}
+            >
+                <Alert
+                    variant="filled"
+                    severity={snackbarData.type}
+                    onClose={handleClose}
+                >
+                    <AlertTitle>{snackbarData.title}</AlertTitle>
+                    {snackbarData.text}
+                </Alert>
+            </Snackbar>
         </>
     );
 };
