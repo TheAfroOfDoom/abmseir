@@ -25,13 +25,3 @@ services:
     command: bash -c "mkdocs serve"
     ports:
       - "8001:8001"
-  # frontend:
-  #   restart: always
-  #   # environment:
-  #   #   - DJANGO_SECRET_KEY=local
-  #   build: ./frontend
-  #   command: bash -c "yarn start"
-  #   volumes:
-  #     - ./frontend:/frontend
-  #   ports:
-  #     - "3000:3000"
