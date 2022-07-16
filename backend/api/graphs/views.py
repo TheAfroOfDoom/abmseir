@@ -1,7 +1,6 @@
 """
 Endpoints to create, list, and retrieve individual graphs.
 """
-# import importlib
 import operator
 
 from rest_framework import mixins, viewsets
@@ -17,8 +16,6 @@ from .serializers import (
     CompleteGraphDataSerializer,
     CompleteGraphSerializer,
 )
-
-# importlib.reload(grapher)
 
 
 class _GraphViewSet(
