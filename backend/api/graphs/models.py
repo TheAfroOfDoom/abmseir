@@ -7,7 +7,7 @@ from django.core import validators
 from django.db import models
 
 
-class _GraphCommon(models.Model):
+class _GraphModel(models.Model):
     """All models relating to graphs have a UUID primary key"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -16,7 +16,7 @@ class _GraphCommon(models.Model):
         abstract = True
 
 
-class Graph(_GraphCommon):
+class Graph(_GraphModel):
     """
     Common properties that all graphs share
     ```
@@ -32,7 +32,7 @@ class Graph(_GraphCommon):
     order = models.PositiveIntegerField(validators=[validators.MinValueValidator(1)])
     # owner_id = models.ForeignKey(to=Users, on_delete=models.CASCADE)
 
-    class Meta(_GraphCommon.Meta):
+    class Meta(_GraphModel.Meta):
         abstract = True
         ordering = ["-order"]
 
