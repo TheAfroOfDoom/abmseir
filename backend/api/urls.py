@@ -39,15 +39,17 @@ router.register(r"simulations/parameters", ParametersViewSet)
 router.register(r"users", UserViewSet)
 router.register(r"register", UserCreateViewSet)
 
+API_URL = "api/v1"
+
 urlpatterns = [
     re_path("admin/", admin.site.urls),
-    re_path("api/v1/", include(router.urls)),
+    re_path(f"{API_URL}/", include(router.urls)),
     re_path("api-token-auth/", views.obtain_auth_token),
     re_path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     # the 'api-root' from django rest-frameworks default router
     # http://www.django-rest-framework.org/api-guide/routers/#defaultrouter
     re_path(r"^$", RedirectView.as_view(url=reverse_lazy("api-root"), permanent=False)),
     re_path(
-        "api/v1", RedirectView.as_view(url=reverse_lazy("api-root"), permanent=False)
+        API_URL, RedirectView.as_view(url=reverse_lazy("api-root"), permanent=False)
     ),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
