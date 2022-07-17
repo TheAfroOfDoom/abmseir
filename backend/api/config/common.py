@@ -6,8 +6,6 @@ from configurations import Configuration
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# os.environ.setdefault("DJANGO_CONFIGURATION", "Local")
-
 
 class Common(Configuration):
 
@@ -56,18 +54,7 @@ class Common(Configuration):
             "USER": "postgres",
             "HOST": "postgres",
         },
-        # "graphs": {
-        #     "ENGINE": "django.db.backends.postgresql",
-        #     "OPTIONS": {"options": "-c search_path=graphs,public"},
-        #     "NAME": "postgres",
-        #     "USER": "postgres",
-        #     "HOST": "postgres",
-        # },
     }
-    # DATABASE_ROUTERS = [
-    #     "api.users.db_router.DBRouter",
-    #     "api.graphs.db_router.DBRouter",
-    # ]
 
     # General
     APPEND_SLASH = False
