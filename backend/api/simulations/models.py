@@ -2,7 +2,7 @@
 
 import uuid
 
-from django.core import exceptions
+from django.core import exceptions, validators
 from django.db import models
 
 
@@ -32,10 +32,13 @@ class Parameters(_SimulationModel):
 
     time_horizon = models.PositiveIntegerField()
     r0 = models.IntegerField()
+    sample_size = models.PositiveIntegerField(
+        validators=[validators.MinValueValidator(1)],
+    )
 
     class Meta:
         ordering = ("id",)
-        unique_together = ("time_horizon", "r0")
+        unique_together = ("time_horizon", "r0", "sample_size")
 
 
 class Instance(_SimulationModel):

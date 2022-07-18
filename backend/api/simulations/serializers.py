@@ -61,6 +61,7 @@ class ParametersSerializer(_SimulationSerializer):
             *_SimulationSerializer.Meta.fields,
             "time_horizon",
             "r0",
+            "sample_size",
         )
 
 
