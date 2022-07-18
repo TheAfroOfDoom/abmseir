@@ -93,10 +93,7 @@ class InstanceViewSet(
         data = request.data.copy()
 
         # Save simulation parameters from request data
-        try:
-            parameters = data.pop("parameters")
-        except KeyError:
-            return response.Response(status=status.HTTP_400_BAD_REQUEST)
+        parameters = data.pop("parameters", {})
 
         # Ensure all parameter-parameters are found and valid
         parameters_serializer = ParametersSerializer(data=parameters)
@@ -109,9 +106,10 @@ class InstanceViewSet(
             data["parameters"] = parameters_id.id
 
             # Ensure instance parameters are valid
-            instance_serializer: InstanceCreateSerializer = self.get_serializer(
-                data=data
+            data.setdefault(  # TODO: this line may be unnecessary
+                "context", self.get_serializer_context()
             )
+            instance_serializer = InstanceCreateSerializer(data=data)
             instance_serializer.is_valid(raise_exception=True)
 
             # Save new simulation instance
@@ -121,12 +119,12 @@ class InstanceViewSet(
             instance_serializer.data["parameters"] = parameters
             headers = self.get_success_headers(instance_serializer.data)
 
-            # Success
-            return response.Response(
-                instance_serializer.data,
-                status=status.HTTP_201_CREATED,
-                headers=headers,
-            )
+        # Success
+        return response.Response(
+            instance_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
 
 
 class SampleViewSet(_SimulationViewSet):
