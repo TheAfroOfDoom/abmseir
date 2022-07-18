@@ -1,5 +1,5 @@
 """
-WSGI config for sncov-api project.
+WSGI config for absier-api project.
 It exposes the WSGI callable as a module-level variable named ``application``.
 For more information on this file, see
 https://docs.djangoproject.com/en/2.0/howto/deployment/wsgi/gunicorn/

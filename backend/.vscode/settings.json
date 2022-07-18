@@ -1,6 +1,6 @@
 {
   "files.exclude": {
-    "abmseir": true
+    "abseir": true
   },
 
   "python.formatting.blackArgs": ["--preview"],
