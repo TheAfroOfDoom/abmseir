@@ -19,6 +19,8 @@ FRONTEND_PORT = 3000
 
 
 class Local(Common):
+    """Settings specific to development Django instances"""
+
     DEBUG = True
 
     # Testing
