@@ -2,16 +2,19 @@
 Endpoints to create, list, and retrieve individual objects relating to simulations.
 """
 from django.db import transaction
-from rest_framework import mixins, viewsets, response, status
-from rest_framework.permissions import AllowAny
-
-from abseir import grapher
+from rest_framework import (
+    mixins,
+    viewsets,
+    permissions,
+    response,
+    status,
+)
 
 from .models import Data, Instance, Parameters, Population, Sample
 from .serializers import (
     DataSerializer,
-    InstanceSerializer,
     InstanceCreateSerializer,
+    InstanceSerializer,
     ParametersSerializer,
     PopulationSerializer,
     SampleSerializer,
@@ -27,7 +30,7 @@ class _SimulationViewSet(
 
     Permissions are currently unimplemented (`AllowAny`)."""
 
-    permission_classes = (AllowAny,)
+    permission_classes = (permissions.AllowAny,)
 
 
 class PopulationViewSet(
@@ -75,7 +78,7 @@ class InstanceViewSet(
 
     def get_serializer_class(self):
         # Use creation serializer class if this is a POST request (create a new instance)
-        if self.request.method == "POST":
+        if self.action == "create":
             return InstanceCreateSerializer
         return super().get_serializer_class()
 
