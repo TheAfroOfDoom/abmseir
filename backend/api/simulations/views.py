@@ -1,6 +1,8 @@
 """
 Endpoints to create, list, and retrieve individual objects relating to simulations.
 """
+import threading
+
 from django.db import transaction
 from rest_framework import (
     mixins,
@@ -19,6 +21,7 @@ from .serializers import (
     PopulationSerializer,
     SampleSerializer,
 )
+from .jobs import simulate_instance
 
 
 class _SimulationViewSet(
@@ -113,11 +116,19 @@ class InstanceViewSet(
             instance_serializer.is_valid(raise_exception=True)
 
             # Save new simulation instance
-            instance_serializer.save()
+            instance = instance_serializer.save()
 
             # Re-append parameter-parameters to instance serializer data
             instance_serializer.data["parameters"] = parameters
             headers = self.get_success_headers(instance_serializer.data)
+
+            # Start running simulation asynchronously
+            instance_thread = threading.Thread(
+                target=simulate_instance,
+                args=[instance, InstanceSerializer(data=data)],
+                daemon=True,
+            )
+            instance_thread.start()
 
         # Success
         return response.Response(
