@@ -1,3 +1,7 @@
+"""
+Settings shared between development and production Django instances
+"""
+
 import os
 from distutils.util import strtobool
 from os.path import join

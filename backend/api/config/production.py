@@ -1,3 +1,7 @@
+"""
+Settings specific to production Django instances
+"""
+
 import os
 
 from .common import Common
