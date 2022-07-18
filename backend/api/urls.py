@@ -13,8 +13,11 @@ from .graphs.views import (
     CompleteGraphDataViewSet,
 )
 from .simulations.views import (
+    DataViewSet,
     InstanceViewSet,
     ParametersViewSet,
+    PopulationViewSet,
+    SampleViewSet,
 )
 from .users.views import UserCreateViewSet, UserViewSet
 
@@ -33,8 +36,11 @@ router.register(r"graphs/circulant", CirculantGraphDataViewSet)
 router.register(r"graphs/complete", CompleteGraphViewSet)
 router.register(r"graphs/complete", CompleteGraphDataViewSet)
 
+router.register(r"simulations/data", DataViewSet)
 router.register(r"simulations/instances", InstanceViewSet)
 router.register(r"simulations/parameters", ParametersViewSet)
+router.register(r"simulations/populations", PopulationViewSet)
+router.register(r"simulations/samples", SampleViewSet)
 
 router.register(r"users", UserViewSet)
 router.register(r"register", UserCreateViewSet)
