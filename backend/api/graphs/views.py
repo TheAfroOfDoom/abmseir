@@ -43,7 +43,7 @@ class CirculantGraphViewSet(_GraphViewSet):
     queryset = CirculantGraph.objects.all()
     serializer_class = CirculantGraphSerializer
 
-    def perform_create(self, serializer: serializer_class):
+    def perform_create(self, serializer: CirculantGraphSerializer):
         order, jumps = operator.itemgetter("order", "jumps")(serializer.initial_data)
         graph = grapher.circulant_graph(order, jumps)
 
@@ -69,7 +69,7 @@ class CompleteGraphViewSet(_GraphViewSet):
     queryset = CompleteGraph.objects.all()
     serializer_class = CompleteGraphSerializer
 
-    def perform_create(self, serializer: serializer_class):
+    def perform_create(self, serializer: CompleteGraphSerializer):
         order = operator.itemgetter("order")(serializer.initial_data)
         graph = grapher.complete_graph(order)
 
