@@ -4,7 +4,14 @@ Settings specific to development Django instances
 
 import os
 
+# TODO: remove this when we upgrade to Django 4.1
+# https://github.com/sbdchd/django-types#install
+from django.db.models import ForeignKey
+
 from .common import Common
+
+for cls in [ForeignKey]:
+    cls.__class_getitem__ = classmethod(lambda cls, *args, **kwargs: cls)  # type: ignore
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # TODO: Modularize frontend IP (3000) into env variable
