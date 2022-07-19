@@ -109,9 +109,6 @@ class InstanceViewSet(
             data["parameters"] = parameters_id.id
 
             # Ensure instance parameters are valid
-            data.setdefault(  # TODO: this line may be unnecessary
-                "context", self.get_serializer_context()
-            )
             instance_serializer = InstanceCreateSerializer(data=data)
             instance_serializer.is_valid(raise_exception=True)
 
