@@ -28,11 +28,23 @@ class Population(_SimulationModel):
 
 
 class Parameters(_SimulationModel):
-    """List of parameters referenced by simulations"""
+    """List of defined parameter configurations referenced by
+    simulation instances
+    """
 
-    time_horizon = models.PositiveIntegerField()
-    r0 = models.IntegerField()
+    # Fields may be null to indicate old parameter-rows not containing
+    # newly added parameters, but all parameters must be provided by new
+    # `Instance` requests
+    #
+    # e.g., if you add a new parameter `custom_param`, all old `Parameters`
+    # rows will not have that value defined (prior simulation instances did
+    # not utilize it), so it will be `null`; all new instances must specify
+    # it though
+    time_horizon = models.PositiveIntegerField(blank=False, null=True)
+    r0 = models.IntegerField(blank=False, null=True)
     sample_size = models.PositiveIntegerField(
+        blank=False,
+        null=True,
         validators=[validators.MinValueValidator(1)],
     )
 
