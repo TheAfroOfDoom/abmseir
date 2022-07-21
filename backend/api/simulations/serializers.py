@@ -13,11 +13,6 @@ from .models import Data, Instance, Parameters, Population, Sample
 
 
 M = TypeVar("M")
-UNIQUE_VALIDATORS = (
-    validators.UniqueValidator,
-    validators.UniqueTogetherValidator,
-    validators.BaseUniqueForValidator,
-)
 
 
 class _SimulationSerializer(serializers.ModelSerializer, Generic[M]):
@@ -44,12 +39,22 @@ class _SimulationSerializer(serializers.ModelSerializer, Generic[M]):
         # Save original validator list to reset with afterwards
         original_validators = copy(self.validators)
 
-        # Remove any unique validators from validation checks
-        for idx, validator in enumerate(self.validators):
-            for unique_validator in UNIQUE_VALIDATORS:
+        def is_unique_validator(validator) -> bool:
+            for unique_validator in [
+                validators.UniqueValidator,
+                validators.UniqueTogetherValidator,
+                validators.BaseUniqueForValidator,
+            ]:
                 if isinstance(validator, unique_validator):
-                    del self.validators[idx]
-                    break
+                    return True
+            return False
+
+        # Remove any unique validators from validation checks
+        self.validators = [
+            validator
+            for validator in self.validators
+            if not is_unique_validator(validator)
+        ]
 
         # Run validation
         result = super().is_valid(raise_exception)
