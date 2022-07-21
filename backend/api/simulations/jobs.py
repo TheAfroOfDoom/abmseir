@@ -13,25 +13,75 @@ from .models import Instance, Parameters, Sample
 from .serializers import InstanceSerializer, SampleSerializer
 
 
+MAX_RUNNING_SAMPLES = 2
+
+
 class InstanceSamples:
-    def __init__(
-        self,
-        total_sample_count: int,
-        instance: Instance,
-        instance_serializer: InstanceSerializer,
-    ):
+    """Tracks which samples of a simulation `Instance` have completed
+    running and which samples still need to be ran.
+    """
+
+    def __init__(self, instance: Instance, instance_serializer: InstanceSerializer):
         self.instance = instance
         self.instance_serializer = instance_serializer
-        self.sample_statuses: dict[str, bool] = {}
-        self.samples_complete = 0
-        self.total_sample_count = total_sample_count
+        self.samples_complete: set[Sample] = set()
+        self.samples_running: set[Sample] = set()
+        self.queue: set[SampleSerializer] = set()
+
+        parameters: Parameters = self.instance.parameters
+        self.total: int = parameters.sample_size
+
+        self._generate_samples()
+
+    def _generate_samples(self):
+        for idx in range(self.total):
+            # Create new sample serializer
+            sample_serializer = SampleSerializer(data={"instance": self.instance.id})
+            sample_serializer.is_valid(raise_exception=True)
+
+            # Track samples to be ran
+            self.queue.add(sample_serializer)
+
+            # Start a maximum of `MAX_RUNNING_SAMPLES` sample threads
+            if idx < MAX_RUNNING_SAMPLES:
+                self.run_sample()
+
+    def run_sample(self):
+        # TODO: re-use thread instead of creating new one? unsure (pros/cons)
+        sample_serializer = self.queue.pop()
+        sample = (
+            sample_serializer.save()
+        )  # Save new sample to database when we start running it
+
+        def sample_callback():
+            """Runs upon sample completion"""
+            self.complete_sample(sample)
+
+        # Start thread to run sample simulation
+        sample_thread = threading.Thread(
+            target=simulate,
+            args=[
+                sample,
+                sample_serializer,
+                sample_callback,
+            ],
+        )
+        sample_thread.start()
+        self.samples_running.add(sample)
 
     def complete_sample(self, sample: Sample):
-        self.samples_complete += 1
-        self.sample_statuses[sample.id] = True
+        """Mark a `Sample` as complete by moving it from the
+        incomplete set to the complete set
 
-        if self.samples_complete == self.total_sample_count:
+        Runs `self.complete()` if all `Sample`s have complewed
+        """
+        self.samples_running.remove(sample)
+        self.samples_complete.add(sample)
+
+        if len(self.samples_complete) == self.total:
             self.complete()
+        elif len(self.queue) > 0:
+            self.run_sample()
 
     def complete(self):
         self.instance_serializer.update(
@@ -44,36 +94,10 @@ def simulate_instance(instance: Instance, serializer: InstanceSerializer):
     and updates the `timestamp_end` upon all `sample`s finishing.
     """
 
-    parameters: Parameters = instance.parameters
-    sample_size = parameters.sample_size
-
-    samples = InstanceSamples(sample_size, instance, serializer)
-
-    def sample_callback():
-        samples.complete_sample(sample)
-
-    # Generate samples as defined by `sample_size`
-    for idx in range(sample_size):
-        # Save new sample to database
-        sample_serializer = SampleSerializer(data={"instance": instance.id})
-        sample_serializer.is_valid(raise_exception=True)
-        sample = sample_serializer.save()
-
-        samples.sample_statuses[sample.id] = False
-
-        # Start thread to run sample simulation
-        sample_thread = threading.Thread(
-            target=simulate_sample,
-            args=[
-                sample,
-                sample_serializer,
-                sample_callback,
-            ],
-        )
-        sample_thread.start()
+    InstanceSamples(instance, serializer)
 
 
-def simulate_sample(sample: Sample, serializer: SampleSerializer, callback: Callable):
+def simulate(sample: Sample, serializer: SampleSerializer, callback: Callable):
     time.sleep(5)
 
     # Update `sample.timestamp_end` upon sample simulation completion

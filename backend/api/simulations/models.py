@@ -7,9 +7,16 @@ from django.db import models
 
 
 class _SimulationModel(models.Model):
-    """All models relating to simulations have a UUID primary key"""
+    """All models relating to simulations have a UUID primary key
+
+    Also defines their `__hash__` method based on their uniquely-identifying
+    primary key `id`
+    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    def __hash__(self):
+        return hash(self.id)
 
     class Meta:
         abstract = True
