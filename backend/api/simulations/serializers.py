@@ -41,7 +41,7 @@ class _SimulationSerializer(serializers.ModelSerializer, Generic[M]):
         if not ignore_unique:
             return super().is_valid(raise_exception)
 
-        # Save original validator list for resetting after
+        # Save original validator list for to reset with afterwards
         original_validators = copy(self.validators)
 
         # Remove any unique validators from validation checks
