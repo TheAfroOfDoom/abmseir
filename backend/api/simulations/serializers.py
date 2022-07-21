@@ -3,22 +3,61 @@ Defines how simulation views interact with simulation models, in addition to:
 
 * gracefully handling unique constraint violations (400 Bad Request)
 """
+from copy import copy
 from typing import Generic, TypeVar
 
 from django.db import IntegrityError
-from rest_framework import serializers
+from rest_framework import serializers, validators
 
 from .models import Data, Instance, Parameters, Population, Sample
 
 
 M = TypeVar("M")
+UNIQUE_VALIDATORS = (
+    validators.UniqueValidator,
+    validators.UniqueTogetherValidator,
+    validators.BaseUniqueForValidator,
+)
 
 
 class _SimulationSerializer(serializers.ModelSerializer, Generic[M]):
     """Abstract simulation model serializer that provides common behavior:
     * defines common exposed fields (`id`)
     * handles unique constraint violations as HTTP 400s (Bad Request)
+    * modifies `is_valid()` to support temporarily ignoring unique constraints
     """
+
+    def is_valid(
+        self,
+        raise_exception: bool = False,
+        ignore_unique: bool = False,
+    ) -> bool:
+        """Adds a kwarg to temporarily remove all forms of unique validation from
+        this serializer before it runs validation
+        """
+        # Inspired by https://stackoverflow.com/a/63782495/13789724
+
+        # Skip extra work if it's unnecessary
+        if not ignore_unique:
+            return super().is_valid(raise_exception)
+
+        # Save original validator list for resetting after
+        original_validators = copy(self.validators)
+
+        # Remove any unique validators from validation checks
+        for idx, validator in enumerate(self.validators):
+            for unique_validator in UNIQUE_VALIDATORS:
+                if isinstance(validator, unique_validator):
+                    del self.validators[idx]
+                    break
+
+        # Run validation
+        result = super().is_valid(raise_exception)
+
+        # Reset validators
+        self.validators = original_validators
+
+        return result
 
     def save(self, **kwargs):
         """Extend Django's base `ModelSerializer` by returning unique constraint

@@ -98,9 +98,11 @@ class InstanceViewSet(
         # Save simulation parameters from request data
         parameters = data.pop("parameters", {})
 
-        # Ensure all parameter-parameters are found and valid
+        # Ensure all parameter-parameters are found and valid,
+        # and ignore unique constraints (since `get_or_create` below
+        # will just grab the preexisting `Parameters` row)
         parameters_serializer = ParametersSerializer(data=parameters)
-        parameters_serializer.is_valid(raise_exception=True)
+        parameters_serializer.is_valid(raise_exception=True, ignore_unique=True)
 
         # Required so that we do not create orphaned `parameters` rows
         with transaction.atomic():
