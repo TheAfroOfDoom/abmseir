@@ -21,7 +21,7 @@ from .serializers import (
     PopulationSerializer,
     SampleSerializer,
 )
-from .jobs import simulate_instance
+from .jobs import InstanceSamples
 
 
 class _SimulationViewSet(
@@ -121,13 +121,8 @@ class InstanceViewSet(
             instance_serializer.data["parameters"] = parameters
             headers = self.get_success_headers(instance_serializer.data)
 
-            # Start running simulation asynchronously
-            instance_thread = threading.Thread(
-                target=simulate_instance,
-                args=[instance, InstanceSerializer(data=data)],
-                daemon=True,
-            )
-            instance_thread.start()
+            # Create simulation samples
+            InstanceSamples(instance, InstanceSerializer(instance))
 
         # Success
         return response.Response(

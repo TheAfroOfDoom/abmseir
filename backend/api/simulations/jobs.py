@@ -107,14 +107,6 @@ class InstanceSamples:
         )
 
 
-def simulate_instance(instance: Instance, serializer: InstanceSerializer):
-    """Generates `sample` threads based on inputted simulation parameters,
-    and updates the `timestamp_end` upon all `sample`s finishing.
-    """
-
-    InstanceSamples(instance, serializer)
-
-
 def simulate(sample: Sample, serializer: SampleSerializer, callback: Callable):
     """Placeholder code to have `sample`s finish simulating after 5 seconds."""
     time.sleep(5)
