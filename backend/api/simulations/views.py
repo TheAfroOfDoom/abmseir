@@ -1,7 +1,6 @@
 """
 Endpoints to create, list, and retrieve individual objects relating to simulations.
 """
-import threading
 
 from django.db import transaction
 from rest_framework import (
