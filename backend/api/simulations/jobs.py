@@ -17,7 +17,10 @@ MAX_RUNNING_SAMPLES = 2
 
 
 class InstanceSamples:
-    """Tracks which samples of a simulation `Instance` have completed
+    """Generates `sample` threads based on inputted simulation parameters,
+    and updates the `timestamp_end` upon all `sample`s finishing.
+
+    Tracks which samples of a simulation `Instance` have completed
     running and which samples still need to be ran.
     """
 
@@ -34,6 +37,11 @@ class InstanceSamples:
         self._generate_samples()
 
     def _generate_samples(self):
+        """Generates samples to be run based on `self.instance.parameters.sample_size.
+
+        Starts simulating a number of samples based on the maximum number of threads that
+        can be ran.
+        """
         for idx in range(self.total):
             # Create new sample serializer
             sample_serializer = SampleSerializer(data={"instance": self.instance.id})
@@ -47,6 +55,11 @@ class InstanceSamples:
                 self.run_sample()
 
     def run_sample(self):
+        """Starts simulating a sample by popping one off the queue.
+
+        Also saves the sample to the database to indicate it has began
+        simulating.
+        """
         # TODO: re-use thread instead of creating new one? unsure (pros/cons)
         sample_serializer = self.queue.pop()
         sample = (
@@ -84,6 +97,11 @@ class InstanceSamples:
             self.run_sample()
 
     def complete(self):
+        """Runs when all instance samples have finished simulating.
+
+        Updates the `instance` in the database with a timestamp indicating
+        when it finished all its simulations.
+        """
         self.instance_serializer.update(
             self.instance, {"timestamp_end": datetime.now(utc)}
         )
@@ -98,6 +116,7 @@ def simulate_instance(instance: Instance, serializer: InstanceSerializer):
 
 
 def simulate(sample: Sample, serializer: SampleSerializer, callback: Callable):
+    """Placeholder code to have `sample`s finish simulating after 5 seconds."""
     time.sleep(5)
 
     # Update `sample.timestamp_end` upon sample simulation completion
