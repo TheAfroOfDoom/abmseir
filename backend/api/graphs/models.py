@@ -20,11 +20,9 @@ class Graph(_GraphModel):
     """
     Common properties that all graphs share
     ```
-    {
-        id: UUID,
-        data: Blob,
-        order: int > 0
-    }
+    id: UUID
+    data: Blob
+    order: int # Positive
     ```
     """
 
@@ -36,9 +34,6 @@ class Graph(_GraphModel):
         abstract = True
         ordering = ["-order"]
 
-    # def __str__(self):
-    #     return f"{self.id}: {GraphType.objects.get(id=self.type)}({self.order})"
-
 
 class CirculantGraph(Graph):
     """
@@ -46,10 +41,8 @@ class CirculantGraph(Graph):
 
     Properties:
     ```
-    {
-        order: int        # Positive
-        jumps: list[int]  # Positive, distinct, increasing integers
-    }
+    order: int        # Positive
+    jumps: list[int]  # Positive, distinct, increasing integers
     ```
 
     Generator: :func:`~abseir.grapher.circulant_graph`
@@ -80,9 +73,7 @@ class CompleteGraph(Graph):
 
     Properties:
     ```
-    {
-        order: int  # Positive
-    }
+    order: int  # Positive
     ```
 
     Generator: :func:`~abseir.grapher.complete_graph`
