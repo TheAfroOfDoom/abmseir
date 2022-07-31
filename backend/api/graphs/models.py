@@ -35,7 +35,7 @@ class Graph(_GraphModel):
         ordering = ["-order"]
 
 
-class CirculantGraph(Graph):
+class Circulant(Graph):
     """
     Database representation of the circulant graph
 
@@ -63,11 +63,10 @@ class CirculantGraph(Graph):
                 fields=["order", "jumps"], name="AK_graph_circulant_properties"
             )
         ]
-        db_table = "graphs_circulant"
         ordering = ["-order", "-jumps"]
 
 
-class CompleteGraph(Graph):
+class Complete(Graph):
     """
     Database representation of the complete graph
 
@@ -86,4 +85,3 @@ class CompleteGraph(Graph):
                 fields=["order"], name="AK_graph_complete_properties"
             )
         ]
-        db_table = "graphs_complete"

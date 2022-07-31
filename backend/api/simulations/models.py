@@ -2,6 +2,8 @@
 
 import uuid
 
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.core import exceptions, validators
 from django.db import models
 
@@ -67,6 +69,10 @@ class Instance(_SimulationModel):
     timestamp_start = models.DateTimeField(auto_now_add=True, editable=False)
     timestamp_end = models.DateTimeField(null=True)
     cancelled = models.BooleanField(default=False)
+
+    graph_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    graph_id = models.UUIDField()
+    graph = GenericForeignKey("graph_type", "graph_id")
 
     def clean(self):
         if self.timestamp_start >= self.timestamp_end:

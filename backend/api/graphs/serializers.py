@@ -9,7 +9,7 @@ import operator
 from django.db import IntegrityError
 from rest_framework import serializers
 
-from .models import CirculantGraph, CompleteGraph
+from .models import Circulant, Complete
 
 
 class _GraphSerializer(serializers.ModelSerializer):
@@ -60,7 +60,7 @@ class CompleteGraphSerializer(_GraphSerializer):
     No special behavior."""
 
     class Meta(_GraphSerializer.Meta):
-        model = CompleteGraph
+        model = Complete
         fields = _GraphSerializer.Meta.fields
 
 
@@ -68,7 +68,7 @@ class CompleteGraphDataSerializer(_GraphDataSerializer):
     """Graph data serialization for complete graphs."""
 
     class Meta(_GraphDataSerializer.Meta):
-        model = CompleteGraph
+        model = Complete
         fields = _GraphDataSerializer.Meta.fields
 
 
@@ -82,7 +82,7 @@ class CirculantGraphSerializer(_GraphSerializer):
     """
 
     class Meta(_GraphSerializer.Meta):
-        model = CirculantGraph
+        model = Circulant
         fields = (*_GraphSerializer.Meta.fields, "jumps")
 
     def validate_jumps(self, jumps):
@@ -119,5 +119,5 @@ class CirculantGraphDataSerializer(_GraphDataSerializer):
     """Graph data serialization for circulant graphs."""
 
     class Meta(_GraphDataSerializer.Meta):
-        model = CirculantGraph
+        model = Circulant
         fields = (*_GraphDataSerializer.Meta.fields, "jumps")

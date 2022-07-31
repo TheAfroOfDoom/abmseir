@@ -1,9 +1,16 @@
 """
 Endpoints to create, list, and retrieve individual objects relating to simulations.
 """
+from typing import cast
 
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import (
+    ValidationError as DjangoValidationError,
+    ObjectDoesNotExist,
+)
 from django.db import transaction
 from rest_framework import (
+    exceptions,
     mixins,
     viewsets,
     permissions,
@@ -11,6 +18,7 @@ from rest_framework import (
     status,
 )
 
+from api.graphs.models import Graph
 from .models import Data, Instance, Parameters, Population, Sample
 from .serializers import (
     DataSerializer,
@@ -102,6 +110,62 @@ class InstanceViewSet(
         # will just grab the preexisting `Parameters` row)
         parameters_serializer = ParametersSerializer(data=parameters)
         parameters_serializer.is_valid(raise_exception=True, ignore_unique=True)
+
+        # Ensure `graph_type` is valid, and grab matching model (db table)
+        graph_parameters = data.pop("graph", {})
+        graph_id, graph_type = graph_parameters.get("id"), graph_parameters.get("type")
+        try:
+            graph_type_model = ContentType.objects.get(
+                app_label="graphs", model=graph_type
+            )
+        except ObjectDoesNotExist as exc:
+            raise exceptions.ValidationError(
+                {
+                    "graph.type": [
+                        exceptions.ErrorDetail(
+                            string=f"Invalid graph type: '{graph_type}'", code="invalid"
+                        )
+                    ]
+                }
+            ) from exc
+        if graph_id is None:
+            raise exceptions.ValidationError(
+                {
+                    "graph.id": [
+                        exceptions.ErrorDetail(
+                            string="This field is required", code="required"
+                        )
+                    ]
+                }
+            )
+
+        # Grab matching graph row in model (db table) from `id`
+        try:
+            graph = cast(Graph, graph_type_model.get_object_for_this_type(id=graph_id))
+        except DjangoValidationError as exc:
+            raise exceptions.ValidationError(
+                {
+                    "graph.id": [
+                        exceptions.ErrorDetail(
+                            string=exc.messages[0],
+                            code="required" if graph_id is None else "invalid",
+                        )
+                    ]
+                }
+            ) from exc
+        except ObjectDoesNotExist as exc:
+            raise exceptions.ValidationError(
+                {
+                    "graph.id": [
+                        exceptions.ErrorDetail(
+                            string=f"Graph '{graph_id}' not found for graph type '{graph_type}'",
+                            code="invalid",
+                        )
+                    ]
+                }
+            ) from exc
+
+        data["graph_id"], data["graph_type"] = graph.id, graph_type_model.id
 
         # Required so that we do not create orphaned `parameters` rows
         with transaction.atomic():

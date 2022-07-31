@@ -130,11 +130,15 @@ class InstanceSerializer(_SimulationSerializer[Instance]):
             "parameters",
             "timestamp_start",
             "timestamp_end",
+            "graph_id",
+            "graph_type",
         )
         read_only_fields = (
             *_SimulationSerializer[Instance].Meta.fields,
             "parameters",
             "timestamp_start",
+            "graph_id",
+            "graph_type",
         )
 
 
@@ -153,6 +157,8 @@ class InstanceCreateSerializer(_SimulationSerializer[Instance]):
             "parameters",
             "timestamp_start",
             "timestamp_end",
+            "graph_id",
+            "graph_type",
         )
         read_only_fields = (
             *_SimulationSerializer[Instance].Meta.fields,

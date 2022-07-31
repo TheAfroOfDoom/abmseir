@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny
 from abseir import grapher
 
 # from .permissions import IsUserOrReadOnly
-from .models import CirculantGraph, CompleteGraph
+from .models import Circulant, Complete
 from .serializers import (
     CirculantGraphDataSerializer,
     CirculantGraphSerializer,
@@ -40,7 +40,7 @@ class CirculantGraphViewSet(_GraphViewSet):
     To access graph raw data, see `CirculantGraphDataViewSet`.
     """
 
-    queryset = CirculantGraph.objects.all()
+    queryset = Circulant.objects.all()
     serializer_class = CirculantGraphSerializer
 
     def perform_create(self, serializer: CirculantGraphSerializer):
@@ -53,7 +53,7 @@ class CirculantGraphViewSet(_GraphViewSet):
 class CirculantGraphDataViewSet(_GraphDataViewSet):
     """Retrieves the data of circulant graphs."""
 
-    queryset = CirculantGraph.objects.all()
+    queryset = Circulant.objects.all()
     serializer_class = CirculantGraphDataSerializer
 
     # TODO: Consider modifying `.retrieve()` to return data in the format of an image/.adjlist
@@ -66,7 +66,7 @@ class CompleteGraphViewSet(_GraphViewSet):
     To access graph raw data, see `CompleteGraphDataViewSet`.
     """
 
-    queryset = CompleteGraph.objects.all()
+    queryset = Complete.objects.all()
     serializer_class = CompleteGraphSerializer
 
     def perform_create(self, serializer: CompleteGraphSerializer):
@@ -79,7 +79,7 @@ class CompleteGraphViewSet(_GraphViewSet):
 class CompleteGraphDataViewSet(_GraphDataViewSet):
     """Retrieves the data of complete graphs."""
 
-    queryset = CompleteGraph.objects.all()
+    queryset = Complete.objects.all()
     serializer_class = CompleteGraphDataSerializer
 
     # TODO: Consider modifying `.retrieve()` to return data in the format of an image/.adjlist
