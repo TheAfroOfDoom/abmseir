@@ -30,6 +30,14 @@ class Graph(_GraphModel):
     order = models.PositiveIntegerField(validators=[validators.MinValueValidator(1)])
     # owner_id = models.ForeignKey(to=Users, on_delete=models.CASCADE)
 
+    def __str__(self):
+        """Converts print output of Graph models from e.g. `"Complete ..."` to `"Complete graph ..."`"""
+        return (
+            super()
+            .__str__()
+            .replace(self.__class__.__name__, f"{self.__class__.__name__} graph")
+        )
+
     class Meta(_GraphModel.Meta):
         abstract = True
         ordering = ["-order"]
