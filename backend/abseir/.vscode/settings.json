@@ -2,5 +2,10 @@
   "python.formatting.blackArgs": ["--preview"],
   "python.formatting.provider": "black",
   "python.linting.enabled": true,
-  "python.linting.pylintEnabled": true
+  "python.linting.pylintEnabled": true,
+
+  "search.exclude": {
+    ".venv": true,
+    "src/build/": true
+  }
 }

@@ -6,12 +6,16 @@
   "python.formatting.blackArgs": ["--preview"],
   "python.formatting.provider": "black",
   "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
   "python.linting.pylintArgs": [
     "--load-plugins",
     "pylint_django",
     "--django-settings-module=api.config",
     "--django-configuration=Local"
   ],
-  "python.linting.pylintEnabled": true,
-  "python.linting.ignorePatterns": ["**/migrations/**.py"]
+  "python.linting.ignorePatterns": ["**/migrations/**.py"],
+
+  "search.exclude": {
+    ".venv": true
+  }
 }

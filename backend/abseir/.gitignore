@@ -41,6 +41,7 @@ tempCodeRunnerFile.py
 
 # # Build files
 *.egg-info/
+src/build/
 
 # R meta files
 *.Rhistory
