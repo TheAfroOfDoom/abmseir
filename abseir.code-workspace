@@ -14,5 +14,7 @@
       "path": "."
     }
   ],
-  "settings": {}
+  "settings": {
+    "editor.formatOnSave": true
+  }
 }
