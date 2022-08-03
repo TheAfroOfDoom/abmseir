@@ -110,9 +110,24 @@ class ParametersSerializer(_SimulationSerializer[Parameters]):
         model = Parameters
         fields = (
             *_SimulationSerializer[Parameters].Meta.fields,
-            "time_horizon",
-            "r0",
             "sample_size",
+            "initial_infected_count",
+            "cycles_per_day",
+            "time_horizon",
+            "exogenous_amount",
+            "exogenous_frequency",
+            "r0",
+            "time_to_infection_mean",
+            "time_to_infection_min",
+            "time_to_recovery_mean",
+            "time_to_recovery_min",
+            "symptoms_probability",
+            "death_probability",
+            "test_specificity",
+            "test_sensitivity",
+            "test_cost",
+            "test_results_delay",
+            "test_rate",
         )
 
 

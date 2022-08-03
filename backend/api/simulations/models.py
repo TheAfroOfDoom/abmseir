@@ -36,6 +36,12 @@ class Population(_SimulationModel):
         ordering = ("name",)
 
 
+ALL_PARAMETER_OPTIONS = {
+    "blank": False,
+    "null": True,
+}
+
+
 class Parameters(_SimulationModel):
     """List of defined parameter configurations referenced by
     simulation instances
@@ -49,17 +55,79 @@ class Parameters(_SimulationModel):
     # rows will not have that value defined (prior simulation instances did
     # not utilize it), so it will be `null`; all new instances must specify
     # it though
-    time_horizon = models.PositiveIntegerField(blank=False, null=True)
-    r0 = models.IntegerField(blank=False, null=True)
+
+    # Note that `models.PositiveIntegerField` includes 0 in its domain
+    # TODO: add simulation-logical validation for each field, prob with `clean()`
     sample_size = models.PositiveIntegerField(
-        blank=False,
-        null=True,
         validators=[validators.MinValueValidator(1)],
+        **ALL_PARAMETER_OPTIONS,
     )
+
+    initial_infected_count = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+
+    cycles_per_day = models.PositiveIntegerField(
+        validators=[validators.MinValueValidator(1)], **ALL_PARAMETER_OPTIONS
+    )
+    time_horizon = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+
+    exogenous_amount = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+    exogenous_frequency = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+
+    r0 = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+
+    time_to_infection_mean = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+    time_to_infection_min = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+
+    time_to_recovery_mean = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+    time_to_recovery_min = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+
+    symptoms_probability = models.DecimalField(
+        max_digits=9,
+        decimal_places=9,
+        **ALL_PARAMETER_OPTIONS,
+    )
+    death_probability = models.DecimalField(
+        max_digits=9,
+        decimal_places=9,
+        **ALL_PARAMETER_OPTIONS,
+    )
+
+    test_specificity = models.DecimalField(
+        max_digits=9,
+        decimal_places=9,
+        **ALL_PARAMETER_OPTIONS,
+    )
+    test_sensitivity = models.DecimalField(
+        max_digits=9,
+        decimal_places=9,
+        **ALL_PARAMETER_OPTIONS,
+    )
+    test_cost = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+    test_results_delay = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
+    test_rate = models.PositiveIntegerField(**ALL_PARAMETER_OPTIONS)
 
     class Meta:
         ordering = ("id",)
-        unique_together = ("time_horizon", "r0", "sample_size")
+        unique_together = (
+            "sample_size",
+            "initial_infected_count",
+            "cycles_per_day",
+            "time_horizon",
+            "exogenous_amount",
+            "exogenous_frequency",
+            "r0",
+            "time_to_infection_mean",
+            "time_to_infection_min",
+            "time_to_recovery_mean",
+            "time_to_recovery_min",
+            "symptoms_probability",
+            "death_probability",
+            "test_specificity",
+            "test_sensitivity",
+            "test_cost",
+            "test_results_delay",
+            "test_rate",
+        )
 
 
 class Instance(_SimulationModel):
