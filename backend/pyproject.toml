@@ -1,2 +1,71 @@
+[tool.poetry]
+name = "abseir-api"
+version = "0.1.0"
+description = "API for `abseir` package"
+authors = ["TheAfroOfDoom <tehafroofdoom@gmail.com>"]
+license = "MIT"
+
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pytz = "^2022.1"
+Django = "4.0.4"
+django-configurations = "^2.3.2"
+gunicorn = "^20.1.0"
+newrelic = "^7.16.0"
+
+
+[tool.poetry.group.local.dependencies]
+abseir = { path = "abseir/src" }
+
+
+[tool.poetry.group.persistence-store.dependencies]
+psycopg2-binary = "^2.9.3"
+dj-database-url = "^1.0.0"
+
+
+[tool.poetry.group.model-tools.dependencies]
+django-model-utils = "^4.2.0"
+django-unique-upload = "^0.2.1"
+
+
+[tool.poetry.group.rest-api.dependencies]
+djangorestframework = "^3.13.1"
+Markdown = "3.3.7"
+django-filter = "^22.1"
+
+
+[tool.poetry.group.dev-types.dependencies]
+ipdb = "^0.13.9"
+ipython = "^8.4.0"
+mkdocs = "^1.3.0"
+flake8 = "^5.0.3"
+debugpy = "^1.6.2"
+django-types = "^0.15.0"
+djangorestframework-types = "^0.8.0"
+
+
+[tool.poetry.group.dev-tests.dependencies]
+mock = "^4.0.3"
+factory-boy = "^3.2.1"
+django-nose = "^1.4.7"
+coverage = "^6.4.2"
+
+
+[tool.poetry.group.static-storage.dependencies]
+django-storages = "^1.12.3"
+boto3 = "^1.24.43"
+
+
+[tool.poetry.group.cross-domain-request.dependencies]
+django-cors-headers = "^3.13.0"
+
+
+[build-system]
+# Should be the same as `$POETRY_VERSION`:
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
 [tool.pylint.MASTER]
 init-hook = "import runpy; runpy.run_path('./api/config/pylint_init_hook.py');'"
