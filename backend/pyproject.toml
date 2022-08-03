@@ -35,6 +35,10 @@ Markdown = "3.3.7"
 django-filter = "^22.1"
 
 
+[tool.poetry.group.dev-formatting.dependencies]
+black = "^22.6.0"
+
+
 [tool.poetry.group.dev-types.dependencies]
 ipdb = "^0.13.9"
 ipython = "^8.4.0"
